@@ -1,5 +1,5 @@
-import {CDNResource} from "@token-ring/cdn";
-import type {UploadOptions, UploadResult} from "@token-ring/cdn/CDNService";
+import {CDNResource} from "@tokenring-ai/cdn";
+import type {UploadOptions, UploadResult} from "@tokenring-ai/cdn/CDNService";
 import {v4 as uuid} from "uuid";
 import WpApiClient from "wordpress-api-client";
 

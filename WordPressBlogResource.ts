@@ -1,7 +1,7 @@
-import {BlogResource} from "@token-ring/blog";
-import {BlogPost, BlogResourceOptions} from "@token-ring/blog/BlogResource";
-import ChatService from "@token-ring/chat/ChatService";
-import {Registry, Service} from "@token-ring/registry";
+import {BlogResource} from "@tokenring-ai/blog";
+import {BlogPost, BlogResourceOptions, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogResource";
+import Agent, {AgentStateSlice} from "@tokenring-ai/agent/Agent";
+import {ResetWhat} from "@tokenring-ai/agent/AgentEvents";
 import {marked} from "marked";
 import WpApiClient from "wordpress-api-client";
 
@@ -12,17 +12,29 @@ export interface WordPressResourceOptions extends BlogResourceOptions {
   password: string;
 }
 
-interface CreatePostData {
-  title: string;
-  content: string;
-  tags?: string[];
-  published?: boolean;
-}
+class WordPressBlogState implements AgentStateSlice {
+  name = "WordPressBlogState";
+  currentPost: WPPost | null;
 
-interface UpdatePostData {
-  title?: string;
-  content?: string;
-  tags?: string[];
+  constructor({currentPost}: { currentPost?: WPPost | null } = {}) {
+    this.currentPost = currentPost || null;
+  }
+
+  reset(what: ResetWhat[]): void {
+    if (what.includes('chat')) {
+      this.currentPost = null;
+    }
+  }
+
+  serialize(): object {
+    return {
+      currentPost: this.currentPost,
+    };
+  }
+
+  deserialize(data: any): void {
+    this.currentPost = data.currentPost || null;
+  }
 }
 
 
@@ -67,18 +79,10 @@ function BlogPostToWPPost({id, title, content, status, created_at, updated_at}: 
 
 
 export default class WordPressBlogResource extends BlogResource {
-  static sampleArguments = {
-    url: "https://your-wordpress-site.com",
-    username: "YOUR_USERNAME",
-    password: "YOUR_APPLICATION_PASSWORD",
-  };
-
   name: string = "WordPressService";
   description: string = "Service for interacting with WordPress via REST API";
 
-  private currentPost: WPPost | null;
   private readonly client: WpApiClient.default;
-  private registry!: Registry;
   private readonly url: string;
 
   constructor({url, username, password, imageGenerationModel, cdn}: WordPressResourceOptions) {
@@ -93,7 +97,6 @@ export default class WordPressBlogResource extends BlogResource {
     }
 
     this.url = url;
-    this.currentPost = null;
     this.client = new WpApiClient.default(url, {
       auth: {
         type: 'basic',
@@ -103,53 +106,40 @@ export default class WordPressBlogResource extends BlogResource {
     });
   }
 
-
-
-  async start(registry: Registry): Promise<void> {
-    const chatContext = registry.requireFirstServiceByType(ChatService);
-    this.registry = registry;
-    chatContext.on("reset", this.resetCurrentPost.bind(this));
+  async attach(agent: Agent): Promise<void> {
+    agent.initializeState(WordPressBlogState, {});
   }
 
-  async stop(registry: Registry): Promise<void> {
-    const chatContext = registry.requireFirstServiceByType(ChatService);
-    chatContext.off("reset", this.resetCurrentPost.bind(this));
-  }
-
-  resetCurrentPost(type: string): void {
+  resetCurrentPost(type: string, agent: Agent): void {
     if (type === 'state') {
-      const chatService = this.registry?.requireFirstServiceByType(ChatService);
-      if (chatService) {
-        chatService?.systemLine("[WordPress] Resetting current post");
-      }
-      this.currentPost = null;
+      agent.systemMessage("[WordPress] Resetting current post");
+      agent.mutateState(WordPressBlogState, (state: WordPressBlogState) => {
+        state.currentPost = null;
+      });
     }
   }
 
-  getCurrentPost(): BlogPost | null {
-    if (!this.currentPost) return null;
+  getCurrentPost(agent: Agent): BlogPost | null {
+    const currentPost = agent.getState(WordPressBlogState).currentPost;
+    if (!currentPost) return null;
 
-    return WPPostToBlogPost(this.currentPost);
+    return WPPostToBlogPost(currentPost);
   }
 
-  async getAllPosts(): Promise<BlogPost[]> {
-    const results =  await this.client.post().find(new URLSearchParams({
-      per_page: "100",
-    }));
+// ... existing code ...
 
-    return results.filter(post => post != null).map(WPPostToBlogPost);
-  }
-
-  async createPost({title, content, tags = [], published = false}: CreatePostData): Promise<BlogPost> {
-    if (this.currentPost) {
+  async createPost(data: CreatePostData, agent: Agent): Promise<BlogPost> {
+    const currentPost = agent.getState(WordPressBlogState).currentPost;
+    if (currentPost) {
       throw new Error("A post is currently selected. Clear the selection before creating a new post.");
     }
 
+    const {title, content = '', tags = [], status = 'draft'} = data;
     const html = await marked(content);
     const result = await this.client.post().create({
       title: {rendered: title},
       content: {rendered: html, protected: false},
-      status: published ? 'publish' : 'draft',
+      status: status === 'published' ? 'publish' : 'draft',
       tags: tags.length > 0 ? await this.getOrCreateTagIds(tags) : [],
     });
 
@@ -160,40 +150,48 @@ export default class WordPressBlogResource extends BlogResource {
     }
   }
 
-  async updatePost({title, content, tags}: UpdatePostData): Promise<BlogPost> {
-    if (!this.currentPost) {
+  async updatePost(data: UpdatePostData, agent: Agent): Promise<BlogPost> {
+    const {title, content, tags} = data;
+    const currentPost = agent.getState(WordPressBlogState).currentPost;
+    if (!currentPost) {
       throw new Error("No post is currently selected. Select a post before updating.");
     }
 
     const updateData: WPPost = {
-      ...this.currentPost,
+      ...currentPost,
     };
 
     if (title) updateData.title = { rendered: title };
     if (content) updateData.content = { rendered: await marked(content), protected: false };
     if (tags) updateData.tags = await this.getOrCreateTagIds(tags);
 
-    const result = await this.client.post().update(updateData, this.currentPost.id);
+    const result = await this.client.post().update(updateData, currentPost.id);
     if (result) {
-      this.currentPost = result;
+      agent.mutateState(WordPressBlogState, (state: WordPressBlogState) => {
+        state.currentPost = result;
+      });
       return WPPostToBlogPost(result);
     } else {
       throw new Error("Failed to update post");
     }
   }
 
-  async selectPostById(id: string): Promise<BlogPost> {
+  async selectPostById(id: string, agent: Agent): Promise<BlogPost> {
     const post = await this.client.post().find(parseInt(id, 10));
     if (post?.[0] == null) {
       throw new Error(`Post with ID ${id} not found`);
     }
 
-    this.currentPost = post[0];
-    return WPPostToBlogPost(this.currentPost);
+    agent.mutateState(WordPressBlogState, (state: WordPressBlogState) => {
+      state.currentPost = post[0];
+    });
+    return WPPostToBlogPost(post[0]);
   }
 
-  async clearCurrentPost(): Promise<void> {
-    this.currentPost = null;
+  async clearCurrentPost(agent: Agent): Promise<void> {
+    agent.mutateState(WordPressBlogState, (state: WordPressBlogState) => {
+      state.currentPost = null;
+    });
   }
 
   private async getOrCreateTagIds(tagNames: string[]): Promise<number[]> {

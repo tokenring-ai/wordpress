@@ -1,13 +1,13 @@
 {
-  "name": "@token-ring/wordpress",
+  "name": "@tokenring-ai/wordpress",
   "version": "0.1.0",
   "description": "WordPress integration for Token Ring",
   "dependencies": {
-    "@token-ring/ai-client": "0.1.0",
-    "@token-ring/cdn": "0.1.0",
-    "@token-ring/chat": "0.1.0",
-    "@token-ring/filesystem": "0.1.0",
-    "@token-ring/registry": "0.1.0",
+    "@tokenring-ai/ai-client": "0.1.0",
+    "@tokenring-ai/cdn": "0.1.0",
+    "@tokenring-ai/agent": "0.1.0",
+    "@tokenring-ai/filesystem": "0.1.0",
+    "@tokenring-ai/registry": "0.1.0",
     "wordpress-api-client": "^0.4.9",
     "marked": "^16.2.0",
     "uuid": "^11.1.0"
