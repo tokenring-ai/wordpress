@@ -1,40 +1,20 @@
-import {BlogResource} from "@tokenring-ai/blog";
-import {BlogPost, BlogResourceOptions, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogResource";
-import Agent, {AgentStateSlice} from "@tokenring-ai/agent/Agent";
-import {ResetWhat} from "@tokenring-ai/agent/AgentEvents";
+import Agent from "@tokenring-ai/agent/Agent";
+import {
+  BlogPost,
+  BlogResource,
+  BlogResourceOptions,
+  CreatePostData,
+  UpdatePostData
+} from "@tokenring-ai/blog/BlogResource";
 import {marked} from "marked";
 import WpApiClient from "wordpress-api-client";
+import {WordPressBlogState} from "./state/WordPressBlogState.js";
 
 export type WPPost = WpApiClient.WPPost;
 export interface WordPressResourceOptions extends BlogResourceOptions {
   url: string;
   username: string;
   password: string;
-}
-
-class WordPressBlogState implements AgentStateSlice {
-  name = "WordPressBlogState";
-  currentPost: WPPost | null;
-
-  constructor({currentPost}: { currentPost?: WPPost | null } = {}) {
-    this.currentPost = currentPost || null;
-  }
-
-  reset(what: ResetWhat[]): void {
-    if (what.includes('chat')) {
-      this.currentPost = null;
-    }
-  }
-
-  serialize(): object {
-    return {
-      currentPost: this.currentPost,
-    };
-  }
-
-  deserialize(data: any): void {
-    this.currentPost = data.currentPost || null;
-  }
 }
 
 
@@ -78,15 +58,34 @@ function BlogPostToWPPost({id, title, content, status, created_at, updated_at}: 
 }
 
 
-export default class WordPressBlogResource extends BlogResource {
-  name: string = "WordPressService";
-  description: string = "Service for interacting with WordPress via REST API";
+export default class WordPressBlogResource implements BlogResource {
+  static sampleArguments = {
+    url: "https://example.com",
+    username: "admin",
+    password: "",
+  };
 
   private readonly client: WpApiClient.default;
   private readonly url: string;
+  description: string;
+  cdnName: string;
+  imageGenerationModel: string;
 
-  constructor({url, username, password, imageGenerationModel, cdn}: WordPressResourceOptions) {
-    super({imageGenerationModel, cdn});
+  constructor({url, username, password, imageGenerationModel, cdn, description}: WordPressResourceOptions) {
+    if (!cdn) {
+      throw new Error("Error in Ghost config: No cdn provided");
+    }
+    this.cdnName = cdn;
+
+    if (!imageGenerationModel) {
+      throw new Error("Error in Ghost config: No imageGenerationModel provided");
+    }
+    this.imageGenerationModel = imageGenerationModel;
+
+    if (!description) {
+      throw new Error("Error in Ghost config: No description provided");
+    }
+    this.description = description;
 
     if (!url) {
       throw new Error("Error in WordPress config: No url provided");
@@ -110,13 +109,9 @@ export default class WordPressBlogResource extends BlogResource {
     agent.initializeState(WordPressBlogState, {});
   }
 
-  resetCurrentPost(type: string, agent: Agent): void {
-    if (type === 'state') {
-      agent.systemMessage("[WordPress] Resetting current post");
-      agent.mutateState(WordPressBlogState, (state: WordPressBlogState) => {
-        state.currentPost = null;
-      });
-    }
+  async getAllPosts(): Promise<BlogPost[]> {
+    const posts = await this.client.post().find();
+    return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
   }
 
   getCurrentPost(agent: Agent): BlogPost | null {
@@ -125,8 +120,6 @@ export default class WordPressBlogResource extends BlogResource {
 
     return WPPostToBlogPost(currentPost);
   }
-
-// ... existing code ...
 
   async createPost(data: CreatePostData, agent: Agent): Promise<BlogPost> {
     const currentPost = agent.getState(WordPressBlogState).currentPost;
