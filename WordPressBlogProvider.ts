@@ -1,17 +1,17 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import {
   BlogPost,
-  BlogResource,
-  BlogResourceOptions,
+  BlogProvider,
+  BlogProviderOptions,
   CreatePostData,
   UpdatePostData
-} from "@tokenring-ai/blog/BlogResource";
+} from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
 import WpApiClient from "wordpress-api-client";
 import {WordPressBlogState} from "./state/WordPressBlogState.js";
 
 export type WPPost = WpApiClient.WPPost;
-export interface WordPressResourceOptions extends BlogResourceOptions {
+export interface WordPressProviderOptions extends BlogProviderOptions {
   url: string;
   username: string;
   password: string;
@@ -58,7 +58,7 @@ function BlogPostToWPPost({id, title, content, status, created_at, updated_at}: 
 }
 
 
-export default class WordPressBlogResource implements BlogResource {
+export default class WordPressBlogProvider implements BlogProvider {
   static sampleArguments = {
     url: "https://example.com",
     username: "admin",
@@ -71,7 +71,7 @@ export default class WordPressBlogResource implements BlogResource {
   cdnName: string;
   imageGenerationModel: string;
 
-  constructor({url, username, password, imageGenerationModel, cdn, description}: WordPressResourceOptions) {
+  constructor({url, username, password, imageGenerationModel, cdn, description}: WordPressProviderOptions) {
     if (!cdn) {
       throw new Error("Error in Ghost config: No cdn provided");
     }

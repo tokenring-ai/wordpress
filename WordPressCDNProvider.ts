@@ -1,21 +1,21 @@
-import {CDNResource} from "@tokenring-ai/cdn";
+import {CDNProvider} from "@tokenring-ai/cdn";
 import type {UploadOptions, UploadResult} from "@tokenring-ai/cdn/CDNService";
 import {v4 as uuid} from "uuid";
 import WpApiClient from "wordpress-api-client";
 
-export interface WordPressCDNResourceOptions {
+export interface WordPressCDNProviderOptions {
   url: string;
   username: string;
   password: string;
 }
 
-export default class WordPressCDNResource extends CDNResource {
+export default class WordPressCDNProvider extends CDNProvider {
   name: string = "WordPressCDN";
   description: string = "CDN backed by a WordPress media library";
 
   private readonly client: WpApiClient.default;
 
-  constructor({url, username, password}: WordPressCDNResourceOptions) {
+  constructor({url, username, password}: WordPressCDNProviderOptions) {
     super();
 
     if (!url || !username || !password) {
