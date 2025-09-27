@@ -127,12 +127,12 @@ export default class WordPressBlogProvider implements BlogProvider {
       throw new Error("A post is currently selected. Clear the selection before creating a new post.");
     }
 
-    const {title, content = '', tags = [], status = 'draft'} = data;
+    const {title, content = '', tags = []} = data;
     const html = await marked(content);
     const result = await this.client.post().create({
       title: {rendered: title},
       content: {rendered: html, protected: false},
-      status: status === 'published' ? 'publish' : 'draft',
+      status: 'draft',
       tags: tags.length > 0 ? await this.getOrCreateTagIds(tags) : [],
     });
 
