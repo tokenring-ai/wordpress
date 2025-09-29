@@ -1,7 +1,7 @@
 import {CDNProvider} from "@tokenring-ai/cdn";
 import type {UploadOptions, UploadResult} from "@tokenring-ai/cdn/CDNService";
 import {v4 as uuid} from "uuid";
-import WpApiClient from "wordpress-api-client";
+import WpApiClient from "wordpress-api-client/src/index.ts";
 
 export interface WordPressCDNProviderOptions {
   url: string;
@@ -22,7 +22,7 @@ export default class WordPressCDNProvider extends CDNProvider {
       throw new Error("WordPress CDN configuration requires url, username, and password");
     }
 
-    this.client = new WpApiClient.default(url, {
+    this.client = new WpApiClient(url, {
       auth: {
         type: 'basic',
         username,
@@ -38,6 +38,6 @@ export default class WordPressCDNProvider extends CDNProvider {
       filename,
       data,
     );
-    return {url: media.source_url};
+    return {url: media.source_url, id: media.id.toString()};
   }
 }

@@ -7,7 +7,7 @@ import {
   UpdatePostData
 } from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
-import WpApiClient from "wordpress-api-client";
+import WpApiClient from "wordpress-api-client/src/index.ts";
 import {WordPressBlogState} from "./state/WordPressBlogState.js";
 
 export type WPPost = WpApiClient.WPPost;
@@ -32,31 +32,25 @@ function WPPostToBlogPost({id, date_gmt, modified_gmt, title, content, status}: 
     throw new Error("Cannot convert WPPost to BlogPost: Missing required field: status");
   }
 
+  const statusMap = {
+    publish: "published",
+    future: "scheduled",
+    draft: "draft",
+    pending: "pending",
+    private: "private"
+  };
+
   const now = new Date();
   return {
     id: id?.toString(),
     title: title?.rendered,
     content: content?.rendered,
-    status: status as 'draft' | 'published' | 'scheduled',
+    status: (statusMap[status as keyof typeof statusMap] ?? "draft") as BlogPost["status"],
     created_at: modified_gmt ? new Date(modified_gmt) : now,
     updated_at: modified_gmt ? new Date(modified_gmt) : now,
     published_at: date_gmt ? new Date(date_gmt) : now,
   };
 }
-
-function BlogPostToWPPost({id, title, content, status, created_at, updated_at}: BlogPost): Partial<WPPost> {
-  return {
-    id: parseInt(id, 10),
-    title: {rendered: title},
-    content: {rendered: content ?? '', protected: false},
-    status,
-    modified_gmt: updated_at.toISOString(),
-    modified: updated_at.toLocaleDateString(),
-    date_gmt: created_at.toISOString(),
-    date: created_at.toLocaleDateString(),
-  };
-}
-
 
 export default class WordPressBlogProvider implements BlogProvider {
   static sampleArguments = {
@@ -73,17 +67,17 @@ export default class WordPressBlogProvider implements BlogProvider {
 
   constructor({url, username, password, imageGenerationModel, cdn, description}: WordPressProviderOptions) {
     if (!cdn) {
-      throw new Error("Error in Ghost config: No cdn provided");
+      throw new Error("Error in WordPress config: No cdn provided");
     }
     this.cdnName = cdn;
 
     if (!imageGenerationModel) {
-      throw new Error("Error in Ghost config: No imageGenerationModel provided");
+      throw new Error("Error in WordPress config: No imageGenerationModel provided");
     }
     this.imageGenerationModel = imageGenerationModel;
 
     if (!description) {
-      throw new Error("Error in Ghost config: No description provided");
+      throw new Error("Error in WordPress config: No description provided");
     }
     this.description = description;
 
@@ -96,7 +90,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     }
 
     this.url = url;
-    this.client = new WpApiClient.default(url, {
+    this.client = new WpApiClient(url, {
       auth: {
         type: 'basic',
         username,
@@ -110,7 +104,7 @@ export default class WordPressBlogProvider implements BlogProvider {
   }
 
   async getAllPosts(): Promise<BlogPost[]> {
-    const posts = await this.client.post().find();
+    const posts = await this.client.post().find(new URLSearchParams('status=publish,future,draft,pending,private'));
     return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
   }
 
@@ -127,16 +121,23 @@ export default class WordPressBlogProvider implements BlogProvider {
       throw new Error("A post is currently selected. Clear the selection before creating a new post.");
     }
 
-    const {title, content = '', tags = []} = data;
+    const {title, content = '', tags = [], feature_image} = data;
+    if (feature_image?.match(/[^0-9]/)) {
+      throw new Error("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?");
+    }
     const html = await marked(content);
     const result = await this.client.post().create({
       title: {rendered: title},
       content: {rendered: html, protected: false},
       status: 'draft',
       tags: tags.length > 0 ? await this.getOrCreateTagIds(tags) : [],
+      feature_image: feature_image,
     });
 
     if (result) {
+      agent.mutateState(WordPressBlogState, (state: WordPressBlogState) => {
+        state.currentPost = result;
+      });
       return WPPostToBlogPost(result);
     } else {
       throw new Error("Failed to create post");
@@ -144,19 +145,38 @@ export default class WordPressBlogProvider implements BlogProvider {
   }
 
   async updatePost(data: UpdatePostData, agent: Agent): Promise<BlogPost> {
-    const {title, content, tags} = data;
+    const {title, content, tags, feature_image, status} = data;
     const currentPost = agent.getState(WordPressBlogState).currentPost;
     if (!currentPost) {
       throw new Error("No post is currently selected. Select a post before updating.");
     }
 
-    const updateData: WPPost = {
-      ...currentPost,
+
+    //console.log(currentPost);
+    const updateData: Partial<WPPost> = {
+      id: currentPost.id,
     };
+
 
     if (title) updateData.title = { rendered: title };
     if (content) updateData.content = { rendered: await marked(content), protected: false };
     if (tags) updateData.tags = await this.getOrCreateTagIds(tags);
+
+    if (feature_image) {
+      if (feature_image.id) updateData.featured_media = parseInt(feature_image.id, 10);
+      else throw new Error("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?");
+    }
+
+    if (status) {
+      const statusMap = {
+        published: "publish",
+        scheduled: "future",
+        draft: "draft",
+        pending: "pending",
+        private: "private"
+      };
+      updateData.status = statusMap[status];
+    }
 
     const result = await this.client.post().update(updateData, currentPost.id);
     if (result) {
