@@ -1,6 +1,6 @@
 import {AgentStateSlice} from "@tokenring-ai/agent/Agent";
 import {ResetWhat} from "@tokenring-ai/agent/AgentEvents";
-import {WPPost} from "../WordPressBlogProvider.js";
+import { WPPost } from "wordpress-api-client/src/types.js"
 
 export class WordPressBlogState implements AgentStateSlice {
   name = "WordPressBlogState";

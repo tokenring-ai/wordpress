@@ -7,10 +7,11 @@ import {
   UpdatePostData
 } from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
-import WpApiClient from "wordpress-api-client/src/index.ts";
+import { WpApiClient } from "wordpress-api-client/src/wp-api-client.ts";
+import { WPPost } from "wordpress-api-client/src/types.js"
 import {WordPressBlogState} from "./state/WordPressBlogState.js";
+import requireFields from "@tokenring-ai/utility/requireFields";
 
-export type WPPost = WpApiClient.WPPost;
 export interface WordPressProviderOptions extends BlogProviderOptions {
   url: string;
   username: string;
@@ -59,36 +60,19 @@ export default class WordPressBlogProvider implements BlogProvider {
     password: "",
   };
 
-  private readonly client: WpApiClient.default;
+  private readonly client: WpApiClient;
   private readonly url: string;
   description: string;
   cdnName: string;
   imageGenerationModel: string;
 
-  constructor({url, username, password, imageGenerationModel, cdn, description}: WordPressProviderOptions) {
-    if (!cdn) {
-      throw new Error("Error in WordPress config: No cdn provided");
-    }
+  constructor(opts: WordPressProviderOptions) {
+    const {url, username, password, imageGenerationModel, cdn, description} = opts;
+    requireFields(opts, ["url", "username", "password", "imageGenerationModel", "cdn", "description"], "WordPressProvider");
+
     this.cdnName = cdn;
-
-    if (!imageGenerationModel) {
-      throw new Error("Error in WordPress config: No imageGenerationModel provided");
-    }
     this.imageGenerationModel = imageGenerationModel;
-
-    if (!description) {
-      throw new Error("Error in WordPress config: No description provided");
-    }
     this.description = description;
-
-    if (!url) {
-      throw new Error("Error in WordPress config: No url provided");
-    }
-
-    if (!username || !password) {
-      throw new Error("Error in WordPress configuration: username and password required");
-    }
-
     this.url = url;
     this.client = new WpApiClient(url, {
       auth: {
@@ -122,7 +106,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     }
 
     const {title, content = '', tags = [], feature_image} = data;
-    if (feature_image?.match(/[^0-9]/)) {
+    if (feature_image && ! feature_image.id) {
       throw new Error("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?");
     }
     const html = await marked(content);
