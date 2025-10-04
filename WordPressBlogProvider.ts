@@ -1,23 +1,22 @@
 import Agent from "@tokenring-ai/agent/Agent";
-import {
-  BlogPost,
-  BlogProvider,
-  BlogProviderOptions,
-  CreatePostData,
-  UpdatePostData
-} from "@tokenring-ai/blog/BlogProvider";
-import {marked} from "marked";
-import { WpApiClient } from "wordpress-api-client/src/wp-api-client.ts";
-import { WPPost } from "wordpress-api-client/src/types.js"
-import {WordPressBlogState} from "./state/WordPressBlogState.js";
+import {BlogPost, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
 import requireFields from "@tokenring-ai/utility/requireFields";
+import {marked} from "marked";
+import {WPPost} from "wordpress-api-client/src/types.js"
+import {WpApiClient} from "wordpress-api-client/src/wp-api-client.ts";
+import {z} from "zod";
+import {WordPressBlogState} from "./state/WordPressBlogState.js";
 
-export interface WordPressProviderOptions extends BlogProviderOptions {
-  url: string;
-  username: string;
-  password: string;
-}
+export const WordPressBlogProviderOptionsSchema = z.object({
+  url: z.string(),
+  username: z.string(),
+  password: z.string(),
+  imageGenerationModel: z.string(),
+  cdn: z.string(),
+  description: z.string(),
+});
 
+export type WordPressBlogProviderOptions = z.infer<typeof WordPressBlogProviderOptionsSchema>;
 
 function WPPostToBlogPost({id, date_gmt, modified_gmt, title, content, status}: Partial<WPPost>): BlogPost {
   if (! id) {
@@ -66,7 +65,7 @@ export default class WordPressBlogProvider implements BlogProvider {
   cdnName: string;
   imageGenerationModel: string;
 
-  constructor(opts: WordPressProviderOptions) {
+  constructor(opts: WordPressBlogProviderOptions) {
     const {url, username, password, imageGenerationModel, cdn, description} = opts;
     requireFields(opts, ["url", "username", "password", "imageGenerationModel", "cdn", "description"], "WordPressProvider");
 

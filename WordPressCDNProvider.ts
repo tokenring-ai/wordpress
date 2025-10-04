@@ -1,14 +1,18 @@
 import {CDNProvider} from "@tokenring-ai/cdn";
 import {UploadOptions, UploadResult} from "@tokenring-ai/cdn/types";
-import {v4 as uuid} from "uuid";
-import { WpApiClient } from "wordpress-api-client/src/wp-api-client.ts";
 import requireFields from "@tokenring-ai/utility/requireFields";
+import {v4 as uuid} from "uuid";
+import {WpApiClient} from "wordpress-api-client/src/wp-api-client.ts";
+import {z} from "zod";
 
-export interface WordPressCDNProviderOptions {
-  url: string;
-  username: string;
-  password: string;
-}
+export const WordPressCDNProviderOptionsSchema = z.object({
+  url: z.string(),
+  username: z.string(),
+  password: z.string(),
+});
+
+export type WordPressCDNProviderOptions = z.infer<typeof WordPressCDNProviderOptionsSchema>;
+
 
 export default class WordPressCDNProvider extends CDNProvider {
   name: string = "WordPressCDN";
