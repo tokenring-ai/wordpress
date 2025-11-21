@@ -9,12 +9,12 @@
     "@tokenring-ai/filesystem": "0.1.0",
     "@tokenring-ai/utility": "0.1.0",
    "wordpress-api-client": "^0.4.9",
-    "marked": "^16.3.0",
+    "marked": "^17.0.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "vitest": "^3.2.4",
-    "@vitest/coverage-v8": "^3.2.4"
+    "vitest": "^4.0.12",
+    "@vitest/coverage-v8": "^4.0.12"
   },
   "exports": {
     ".": "./index.ts",
