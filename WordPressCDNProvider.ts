@@ -1,6 +1,6 @@
 import {CDNProvider} from "@tokenring-ai/cdn";
 import {UploadOptions, UploadResult} from "@tokenring-ai/cdn/types";
-import requireFields from "@tokenring-ai/utility/requireFields";
+import requireFields from "@tokenring-ai/utility/object/requireFields";
 import {v4 as uuid} from "uuid";
 import {WpApiClient} from "wordpress-api-client/src/wp-api-client.ts";
 import {z} from "zod";

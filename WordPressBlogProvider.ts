@@ -1,6 +1,6 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import {BlogPost, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
-import requireFields from "@tokenring-ai/utility/requireFields";
+import requireFields from "@tokenring-ai/utility/object/requireFields";
 import {marked} from "marked";
 import {WPPost} from "wordpress-api-client/src/types.js"
 import {WpApiClient} from "wordpress-api-client/src/wp-api-client.ts";
