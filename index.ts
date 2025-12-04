@@ -13,7 +13,7 @@ export default {
     const cdnConfig = app.getConfigSlice("cdn", CDNConfigSchema);
 
     if (cdnConfig) {
-      app.services.waitForItemByType(CDNService).then(cdnService => {
+      app.services.waitForItemByType(CDNService, cdnService => {
         for (const name in cdnConfig.providers) {
           const provider = cdnConfig.providers[name];
           if (provider.type === "wordpress") {
@@ -26,7 +26,7 @@ export default {
     const blogConfig = app.getConfigSlice("blog", BlogConfigSchema);
 
     if (blogConfig) {
-      app.services.waitForItemByType(BlogService).then(blogService => {
+      app.services.waitForItemByType(BlogService, blogService => {
         for (const name in blogConfig.providers) {
           const provider = blogConfig.providers[name];
           if (provider.type === "wordpress") {
