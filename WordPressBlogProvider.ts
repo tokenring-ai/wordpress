@@ -53,12 +53,6 @@ function WPPostToBlogPost({id, date_gmt, modified_gmt, title, content, status}: 
 }
 
 export default class WordPressBlogProvider implements BlogProvider {
-  static sampleArguments = {
-    url: "https://example.com",
-    username: "admin",
-    password: "",
-  };
-
   private readonly client: WpApiClient;
   private readonly url: string;
   description: string;
