@@ -29,13 +29,14 @@ import { TokenRingApp } from "@tokenring-ai/app";
 
 ```
 pkg/wordpress/
-├── WordPressBlogProvider.ts      # Core blog management implementation
-├── WordPressCDNProvider.ts       # Media/CDN provider implementation
-├── WordPressBlogState.ts         # State management for current post
-├── plugin.ts                     # Plugin integration and auto-registration
-├── state/                        # State management files
-├── design/                       # API documentation and design specs
-└── README.md                     # This file
+├── index.ts                     # Main exports
+├── plugin.ts                    # Plugin integration and auto-registration
+├── WordPressBlogProvider.ts     # Core blog management implementation
+├── WordPressCDNProvider.ts      # Media/CDN provider implementation
+├── WordPressBlogState.ts        # State management for current post
+├── state/                      # State management files
+├── design/                     # API documentation and design specs
+└── README.md                   # This file
 ```
 
 ## Core Components
@@ -265,7 +266,7 @@ const result = await wpCDN.upload(buffer, options);
 
 ## Plugin Integration
 
-The package automatically integrates with TokenRing applications through the plugin system:
+The package automatically integrates with Token Ring applications through the plugin system:
 
 ```ts
 export default {
@@ -326,9 +327,9 @@ export default {
 - **@tokenring-ai/blog**: Blog service interfaces
 - **@tokenring-ai/filesystem**: File system services
 - **@tokenring-ai/utility**: Utility functions
-- **wordpress-api-client**: WordPress REST API client (^0.4.9)
-- **marked**: Markdown processing (^17.0.1)
-- **uuid**: UUID generation (^13.0.0)
+- **wordpress-api-client**: WordPress REST API client (0.4.9)
+- **marked**: Markdown processing (17.0.1)
+- **uuid**: UUID generation (13.0.0)
 - **zod**: Schema validation
 
 ### Development Dependencies
@@ -371,13 +372,13 @@ The package integrates with WordPress REST API endpoints:
 ### Building
 
 ```bash
-npm run build
+bun run build
 ```
 
 ### Testing
 
 ```bash
-npm run test
+bun run test
 ```
 
 ### Plugin Integration
@@ -390,4 +391,4 @@ MIT License - see repository LICENSE file for details.
 
 ## Integration Notes
 
-This package is designed to work seamlessly with the TokenRing ecosystem through the plugin system. For custom integrations, ensure proper configuration of WordPress credentials and CDN settings.
+This package is designed to work seamlessly with the Token Ring ecosystem through the plugin system. For custom integrations, ensure proper configuration of WordPress credentials and CDN settings.
