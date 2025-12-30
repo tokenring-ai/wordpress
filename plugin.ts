@@ -18,25 +18,20 @@ export default {
   version: packageJSON.version,
   description: packageJSON.description,
   install(app, config) {
-    const cdnConfig = app.getConfigSlice("cdn", CDNConfigSchema);
-
-    if (cdnConfig) {
+    if (config.cdn) {
       app.services.waitForItemByType(CDNService, cdnService => {
-        for (const name in cdnConfig.providers) {
-          const provider = cdnConfig.providers[name];
+        for (const name in config.cdn!.providers) {
+          const provider = config.cdn!.providers[name];
           if (provider.type === "wordpress") {
             cdnService.registerProvider(name, new WordPressCDNProvider(WordPressCDNProviderOptionsSchema.parse(provider)));
           }
         }
       });
     }
-
-    const blogConfig = app.getConfigSlice("blog", BlogConfigSchema);
-
-    if (blogConfig) {
+    if (config.blog) {
       app.services.waitForItemByType(BlogService, blogService => {
-        for (const name in blogConfig.providers) {
-          const provider = blogConfig.providers[name];
+        for (const name in config.blog!.providers) {
+          const provider = config.blog!.providers[name];
           if (provider.type === "wordpress") {
             blogService.registerBlog(name, new WordPressBlogProvider(WordPressBlogProviderOptionsSchema.parse(provider)));
           }
