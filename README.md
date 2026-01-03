@@ -15,14 +15,51 @@ This package provides seamless WordPress integration for Token Ring applications
 
 ## Installation/Setup
 
-This package is part of the Token Ring monorepo and integrates automatically through the plugin system. For custom setups:
+This package integrates seamlessly with Token Ring applications via the plugin system. To set up:
+
+1. Add the WordPress plugin to your TokenRingApp instance.
+2. Configure blog and CDN providers in the app's configuration.
 
 ```ts
-import WordPressPlugin from "@tokenring-ai/wordpress/plugin";
 import { TokenRingApp } from "@tokenring-ai/app";
+import WordPressPlugin from "@tokenring-ai/wordpress/plugin";
 
-// The plugin auto-registers with TokenRing applications
-// No manual setup required for standard integrations
+const app = new TokenRingApp({
+  plugins: [WordPressPlugin],
+  config: {
+    blog: {
+      providers: {
+        wordpress: {
+          type: "wordpress",
+          url: process.env.WORDPRESS_URL,
+          username: process.env.WORDPRESS_USERNAME,
+          password: process.env.WORDPRESS_PASSWORD,
+          imageGenerationModel: "dall-e-3",
+          cdn: "wordpress",
+          description: "Main WordPress blog"
+        }
+      }
+    },
+    cdn: {
+      providers: {
+        wordpress: {
+          type: "wordpress",
+          url: process.env.WORDPRESS_URL,
+          username: process.env.WORDPRESS_USERNAME,
+          password: process.env.WORDPRESS_PASSWORD
+        }
+      }
+    }
+  }
+});
+```
+
+These environment variables can be set to configure WordPress credentials:
+
+```bash
+WORDPRESS_URL=https://your-wordpress-site.com
+WORDPRESS_USERNAME=your_username
+WORDPRESS_PASSWORD=your_application_password
 ```
 
 ## Package Structure
@@ -33,10 +70,13 @@ pkg/wordpress/
 ├── plugin.ts                    # Plugin integration and auto-registration
 ├── WordPressBlogProvider.ts     # Core blog management implementation
 ├── WordPressCDNProvider.ts      # Media/CDN provider implementation
-├── WordPressBlogState.ts        # State management for current post
-├── state/                      # State management files
-├── design/                     # API documentation and design specs
-└── README.md                   # This file
+├── state/
+│   └── WordPressBlogState.ts    # Agent state management for current post
+├── design/
+│   ├── posts.md                 # WordPress Posts API reference and schema
+│   ├── media.md                 # WordPress Media API reference and schema
+│   └── typescript-api.md        # TypeScript client API documentation
+└── README.md                    # This file
 ```
 
 ## Core Components
@@ -47,18 +87,19 @@ The main blog provider implementing the `BlogProvider` interface:
 
 ```ts
 interface WordPressBlogProviderOptions {
-  url: string;                    # WordPress site URL
-  username: string;              # WordPress username
-  password: string;              # WordPress application password
-  imageGenerationModel: string;  # AI image generation model
-  cdn: string;                   # CDN provider name
-  description: string;           # Provider description
+  url: string;                    // WordPress site URL
+  username: string;               // WordPress username
+  password: string;               // WordPress application password
+  imageGenerationModel: string;   // AI image generation model
+  cdn: string;                    // CDN provider name
+  description: string;            // Provider description
 }
 ```
 
 **Key Methods:**
+- `attach(agent: Agent)`: Initialize the blog state for an agent
 - `getAllPosts()`: Retrieve all posts from WordPress
-- `getCurrentPost()`: Get the currently selected post
+- `getCurrentPost(agent)`: Get the currently selected post
 - `createPost(data, agent)`: Create new blog posts from Markdown
 - `updatePost(data, agent)`: Update existing posts
 - `selectPostById(id, agent)`: Select a specific post as current
@@ -76,10 +117,9 @@ interface WordPressCDNProviderOptions {
 }
 ```
 
-**Key Features:**
-- Media upload to WordPress media library
-- File storage and retrieval
-- Integration with WordPress REST API
+**Key Methods:**
+- `upload(data, options?)`: Upload media files to WordPress media library
+- Returns: `{ url: string, id: string }`
 
 ### WordPressBlogState
 
@@ -88,12 +128,18 @@ Agent state management for current post context:
 ```ts
 class WordPressBlogState implements AgentStateSlice {
   currentPost: WPPost | null;
-  
-  # State persistence across agent sessions
-  # Automatic cleanup on chat reset
-  # Serialization support for checkpointing
+
+  // State persistence across agent sessions
+  // Automatic cleanup on chat reset
+  // Serialization support for checkpointing
 }
 ```
+
+**Methods:**
+- `reset(what: ResetWhat[])`: Reset state (handles 'chat' reset)
+- `serialize()`: Serialize state for checkpoints
+- `deserialize(data)`: Deserialize state from checkpoints
+- `show()`: Generate display string for current post
 
 ## Configuration
 
@@ -108,25 +154,25 @@ const WordPressBlogProviderOptionsSchema = z.object({
   cdn: z.string(),
   description: z.string(),
 });
-```
 
-### Environment Variables
-
-```bash
-WORDPRESS_URL=https://your-wordpress-site.com
-WORDPRESS_USERNAME=your_username
-WORDPRESS_PASSWORD=your_application_password
+const WordPressCDNProviderOptionsSchema = z.object({
+  url: z.string(),
+  username: z.string(),
+  password: z.string(),
+});
 ```
 
 ### Sample Configuration
 
 ```ts
-WordPressBlogProvider.sampleArguments
-// {
-//   url: "https://example.com",
-//   username: "admin", 
-//   password: "app_password"
-// }
+{
+  url: "https://example.com",
+  username: "admin",
+  password: "app_password",
+  imageGenerationModel: "dall-e-3",
+  cdn: "wordpress",
+  description: "Main WordPress blog"
+}
 ```
 
 ## Usage Examples
@@ -144,6 +190,9 @@ const wpProvider = new WordPressBlogProvider({
   cdn: "wordpress",
   description: "Main WordPress blog"
 });
+
+// Initialize state for the agent
+await wpProvider.attach(agent);
 
 // Create a new post
 const newPost = await wpProvider.createPost({
@@ -163,7 +212,7 @@ import { WordPressCDNProvider } from "@tokenring-ai/wordpress";
 
 const wpCDN = new WordPressCDNProvider({
   url: "https://your-site.com",
-  username: "admin", 
+  username: "admin",
   password: "app_password"
 });
 
@@ -186,24 +235,61 @@ await wpProvider.updatePost({
 
 // WordPress status mapping:
 // published -> publish
-// scheduled -> future  
+// scheduled -> future
 // draft -> draft
 // pending -> pending
 // private -> private
+```
+
+### Selecting an Existing Post
+
+```ts
+// Select an existing post by ID
+const post = await wpProvider.selectPostById("123", agent);
+
+// Make changes and update
+await wpProvider.updatePost({
+  title: "Updated Title",
+  content: "Updated content in Markdown"
+}, agent);
+
+// Clear the current post selection
+await wpProvider.clearCurrentPost(agent);
 ```
 
 ## API Reference
 
 ### Blog Provider Methods
 
+#### attach()
+
+Initialize the blog state for an agent:
+
+```ts
+async attach(agent: Agent): Promise<void>
+```
+
+Initializes the WordPressBlogState for the agent, enabling post management capabilities.
+
 #### getAllPosts()
 
 Retrieve all posts from WordPress:
 
 ```ts
-const posts = await wpProvider.getAllPosts();
-// Returns: BlogPost[] with all WordPress posts
+async getAllPosts(): Promise<BlogPost[]>
 ```
+
+Fetches all posts with statuses: publish, future, draft, pending, private.
+
+#### getCurrentPost()
+
+Get the currently selected post:
+
+```ts
+getCurrentPost(agent: Agent): BlogPost | null
+```
+
+Returns the currently selected post, or null if no post is selected.
 
 #### createPost()
 
@@ -217,11 +303,10 @@ interface CreatePostData {
   feature_image?: { id: string };
 }
 
-const post = await wpProvider.createPost(data, agent);
-// Automatically converts Markdown to HTML
-// Creates missing tags automatically
-// Sets new post as current post
+async createPost(data: CreatePostData, agent: Agent): Promise<BlogPost>
 ```
+
+Automatically converts Markdown to HTML, creates missing tags automatically, and sets new post as current post.
 
 #### updatePost()
 
@@ -236,18 +321,30 @@ interface UpdatePostData {
   status?: "published" | "scheduled" | "draft" | "pending" | "private";
 }
 
-const post = await wpProvider.updatePost(data, agent);
+async updatePost(data: UpdatePostData, agent: Agent): Promise<BlogPost>
 ```
+
+Updates the currently selected post with new data.
 
 #### selectPostById()
 
 Select a specific post as current:
 
 ```ts
-const post = await wpProvider.selectPostById("123", agent);
-// Post ID is converted to integer internally
-// Sets selected post as current post
+async selectPostById(id: string, agent: Agent): Promise<BlogPost>
 ```
+
+Post ID is converted to integer internally. Throws error if post not found.
+
+#### clearCurrentPost()
+
+Clear current post selection:
+
+```ts
+async clearCurrentPost(agent: Agent): Promise<void>
+```
+
+Clears the current post selection.
 
 ### CDN Provider Methods
 
@@ -260,30 +357,65 @@ interface UploadOptions {
   filename?: string;
 }
 
-const result = await wpCDN.upload(buffer, options);
-// Returns: { url: string, id: string }
+async upload(data: Buffer, options?: UploadOptions): Promise<UploadResult>
+// UploadResult: { url: string, id: string }
 ```
+
+Uploads a buffer to the WordPress media library and returns the URL and media ID.
 
 ## Plugin Integration
 
 The package automatically integrates with Token Ring applications through the plugin system:
 
 ```ts
+import { TokenRingPlugin } from "@tokenring-ai/app";
+import { BlogConfigSchema, BlogService } from "@tokenring-ai/blog";
+import { CDNConfigSchema, CDNService } from "@tokenring-ai/cdn";
+import { z } from "zod";
+
+const packageConfigSchema = z.object({
+  cdn: CDNConfigSchema.optional(),
+  blog: BlogConfigSchema.optional(),
+});
+
 export default {
   name: "@tokenring-ai/wordpress",
   version: "0.2.0",
-  install(app: TokenRingApp) {
-    # Automatically registers with BlogService and CDNService
-    # Configures providers based on app configuration
-    # Handles service dependencies
-  }
-}
+  description: "WordPress integration for Token Ring",
+  install(app, config) {
+    if (config.cdn) {
+      app.services.waitForItemByType(CDNService, cdnService => {
+        for (const name in config.cdn!.providers) {
+          const provider = config.cdn!.providers[name];
+          if (provider.type === "wordpress") {
+            cdnService.registerProvider(name, new WordPressCDNProvider(
+              WordPressCDNProviderOptionsSchema.parse(provider)
+            ));
+          }
+        }
+      });
+    }
+    if (config.blog) {
+      app.services.waitForItemByType(BlogService, blogService => {
+        for (const name in config.blog!.providers) {
+          const provider = config.blog!.providers[name];
+          if (provider.type === "wordpress") {
+            blogService.registerBlog(name, new WordPressBlogProvider(
+              WordPressBlogProviderOptionsSchema.parse(provider)
+            ));
+          }
+        }
+      });
+    }
+  },
+  config: packageConfigSchema
+} satisfies TokenRingPlugin<typeof packageConfigSchema>;
 ```
 
 ### Auto-Registration Features
 
 - **Blog Service Integration**: Registers WordPress blog providers automatically
-- **CDN Service Integration**: Registers WordPress CDN providers automatically  
+- **CDN Service Integration**: Registers WordPress CDN providers automatically
 - **Configuration-Based Setup**: Reads configuration from app config slices
 - **Service Dependencies**: Handles service lifecycle and dependencies
 
@@ -308,6 +440,7 @@ export default {
 - **Session Persistence**: Posts persist within agent sessions
 - **Chat Reset**: Clears current post on chat reset
 - **Checkpoint Support**: Full state serialization for checkpoints
+- **Display Support**: Generates human-readable status via `show()` method
 
 ### Error Handling
 
@@ -315,34 +448,20 @@ export default {
 - **WordPress API Errors**: Proper error propagation from WordPress API
 - **Missing Resources**: Clear errors for missing posts or resources
 - **Network Issues**: Handling of network and API errors
-
-## Dependencies
-
-### Runtime Dependencies
-
-- **@tokenring-ai/app**: Core application framework
-- **@tokenring-ai/ai-client**: AI client integration
-- **@tokenring-ai/cdn**: CDN service interfaces
-- **@tokenring-ai/agent**: Agent system integration
-- **@tokenring-ai/blog**: Blog service interfaces
-- **@tokenring-ai/filesystem**: File system services
-- **@tokenring-ai/utility**: Utility functions
-- **wordpress-api-client**: WordPress REST API client (0.4.9)
-- **marked**: Markdown processing (17.0.1)
-- **uuid**: UUID generation (13.0.0)
-- **zod**: Schema validation
+- **Preconditions**: Validation of preconditions (e.g., no post selected when creating)
 
 ### Development Dependencies
 
 - **vitest**: Testing framework
 - **@vitest/coverage-v8**: Coverage reporting
+- **typescript**: TypeScript compiler
 
 ## Design Documentation
 
 The package includes comprehensive design documentation:
 
 - **posts.md**: WordPress Posts API reference and schema
-- **media.md**: WordPress Media API reference and schema  
+- **media.md**: WordPress Media API reference and schema
 - **typescript-api.md**: TypeScript client API documentation
 
 ## WordPress REST API Integration
@@ -387,8 +506,4 @@ The package automatically integrates with TokenRing applications. No additional 
 
 ## License
 
-MIT License - see repository LICENSE file for details.
-
-## Integration Notes
-
-This package is designed to work seamlessly with the Token Ring ecosystem through the plugin system. For custom integrations, ensure proper configuration of WordPress credentials and CDN settings.
+MIT License - see [LICENSE](./LICENSE) file for details.
