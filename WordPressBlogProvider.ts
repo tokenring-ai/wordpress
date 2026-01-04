@@ -76,7 +76,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     });
   }
 
-  async attach(agent: Agent): Promise<void> {
+  attach(agent: Agent): void {
     agent.initializeState(WordPressBlogState, {});
   }
 
