@@ -1,9 +1,15 @@
 import {ResetWhat} from "@tokenring-ai/agent/AgentEvents";
-import {AgentStateSlice} from "@tokenring-ai/agent/types";
+import type {AgentStateSlice} from "@tokenring-ai/agent/types";
+import {z} from "zod";
 import {WPPost} from "wordpress-api-client/src/types.js"
 
-export class WordPressBlogState implements AgentStateSlice {
+const serializationSchema = z.object({
+  currentPost: z.any().nullable()
+});
+
+export class WordPressBlogState implements AgentStateSlice<typeof serializationSchema> {
   name = "WordPressBlogState";
+  serializationSchema = serializationSchema;
   currentPost: WPPost | null;
 
   constructor({currentPost}: { currentPost?: WPPost | null } = {}) {
@@ -16,13 +22,13 @@ export class WordPressBlogState implements AgentStateSlice {
     }
   }
 
-  serialize(): object {
+  serialize(): z.output<typeof serializationSchema> {
     return {
       currentPost: this.currentPost,
     };
   }
 
-  deserialize(data: any): void {
+  deserialize(data: z.output<typeof serializationSchema>): void {
     this.currentPost = data.currentPost || null;
   }
 
