@@ -1,6 +1,5 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import {BlogPost, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
-import requireFields from "@tokenring-ai/utility/object/requireFields";
 import {marked} from "marked";
 import type {WPPost} from "wordpress-api-client/dist/types.js";
 import {WpApiClient} from "wordpress-api-client/dist/wp-api-client.js";
@@ -54,24 +53,20 @@ function WPPostToBlogPost({id, date_gmt, modified_gmt, title, content, status}: 
 
 export default class WordPressBlogProvider implements BlogProvider {
   private readonly client: WpApiClient;
-  private readonly url: string;
   description: string;
   cdnName: string;
   imageGenerationModel: string;
 
-  constructor(opts: WordPressBlogProviderOptions) {
-    const {url, username, password, imageGenerationModel, cdn, description} = opts;
-    requireFields(opts, ["url", "username", "password", "imageGenerationModel", "cdn", "description"], "WordPressProvider");
+  constructor(options: WordPressBlogProviderOptions) {
+    this.description = options.description;
+    this.cdnName = options.cdn;
+    this.imageGenerationModel = options.imageGenerationModel;
 
-    this.cdnName = cdn;
-    this.imageGenerationModel = imageGenerationModel;
-    this.description = description;
-    this.url = url;
-    this.client = new WpApiClient(url, {
+    this.client = new WpApiClient(options.url, {
       auth: {
         type: 'basic',
-        username,
-        password,
+        username: options.username,
+        password: options.password,
       },
     });
   }
