@@ -85,7 +85,7 @@ pkg/wordpress/
 
 The main blog provider implementing the `BlogProvider` interface:
 
-```ts
+```typescript
 interface WordPressBlogProviderOptions {
   url: string;                    // WordPress site URL
   username: string;               // WordPress username
@@ -109,7 +109,7 @@ interface WordPressBlogProviderOptions {
 
 CDN provider for media file management:
 
-```ts
+```typescript
 interface WordPressCDNProviderOptions {
   url: string;
   username: string;
@@ -125,7 +125,7 @@ interface WordPressCDNProviderOptions {
 
 Agent state management for current post context:
 
-```ts
+```typescript
 class WordPressBlogState implements AgentStateSlice {
   currentPost: WPPost | null;
 
@@ -145,8 +145,8 @@ class WordPressBlogState implements AgentStateSlice {
 
 The package uses Zod schema validation for configuration:
 
-```ts
-const WordPressBlogProviderOptionsSchema = z.object({
+```typescript
+export const WordPressBlogProviderOptionsSchema = z.object({
   url: z.string(),
   username: z.string(),
   password: z.string(),
@@ -155,7 +155,7 @@ const WordPressBlogProviderOptionsSchema = z.object({
   description: z.string(),
 });
 
-const WordPressCDNProviderOptionsSchema = z.object({
+export const WordPressCDNProviderOptionsSchema = z.object({
   url: z.string(),
   username: z.string(),
   password: z.string(),
@@ -372,6 +372,9 @@ import { TokenRingPlugin } from "@tokenring-ai/app";
 import { BlogConfigSchema, BlogService } from "@tokenring-ai/blog";
 import { CDNConfigSchema, CDNService } from "@tokenring-ai/cdn";
 import { z } from "zod";
+import packageJSON from './package.json' with {type: 'json'};
+import WordPressBlogProvider, {WordPressBlogProviderOptionsSchema} from "./WordPressBlogProvider.js";
+import WordPressCDNProvider, {WordPressCDNProviderOptionsSchema} from "./WordPressCDNProvider.js";
 
 const packageConfigSchema = z.object({
   cdn: CDNConfigSchema.optional(),
@@ -379,9 +382,9 @@ const packageConfigSchema = z.object({
 });
 
 export default {
-  name: "@tokenring-ai/wordpress",
-  version: "0.2.0",
-  description: "WordPress integration for Token Ring",
+  name: packageJSON.name,
+  version: packageJSON.version,
+  description: packageJSON.description,
   install(app, config) {
     if (config.cdn) {
       app.services.waitForItemByType(CDNService, cdnService => {
@@ -422,20 +425,17 @@ export default {
 ## Features
 
 ### Content Processing
-
 - **Markdown Conversion**: Automatic Markdown to HTML conversion using `marked`
 - **HTML Sanitization**: Content is marked as unprotected for WordPress
 - **Rich Text Support**: Full HTML content support
 
 ### Tag Management
-
 - **Automatic Creation**: Creates missing tags automatically
 - **Duplicate Prevention**: Checks for existing tags before creation
 - **Bulk Operations**: Handle multiple tags efficiently
 - **Error Handling**: Graceful handling of tag operation failures
 
 ### State Management
-
 - **Current Post Context**: Maintains current post across operations
 - **Session Persistence**: Posts persist within agent sessions
 - **Chat Reset**: Clears current post on chat reset
@@ -443,7 +443,6 @@ export default {
 - **Display Support**: Generates human-readable status via `show()` method
 
 ### Error Handling
-
 - **Validation**: Comprehensive input validation with Zod
 - **WordPress API Errors**: Proper error propagation from WordPress API
 - **Missing Resources**: Clear errors for missing posts or resources
@@ -451,7 +450,6 @@ export default {
 - **Preconditions**: Validation of preconditions (e.g., no post selected when creating)
 
 ### Development Dependencies
-
 - **vitest**: Testing framework
 - **@vitest/coverage-v8**: Coverage reporting
 - **typescript**: TypeScript compiler
