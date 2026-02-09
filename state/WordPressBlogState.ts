@@ -8,7 +8,7 @@ const serializationSchema = z.object({
 });
 
 export class WordPressBlogState implements AgentStateSlice<typeof serializationSchema> {
-  name = "WordPressBlogState";
+  readonly name = "WordPressBlogState";
   serializationSchema = serializationSchema;
   currentPost: WPPost | null;
 

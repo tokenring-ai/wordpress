@@ -124,7 +124,6 @@ export default class WordPressBlogProvider implements BlogProvider {
     }
 
 
-    //console.log(currentPost);
     const updateData: Partial<WPPost> = {
       id: currentPost.id,
     };
