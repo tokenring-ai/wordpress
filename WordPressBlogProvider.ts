@@ -1,5 +1,5 @@
 import Agent from "@tokenring-ai/agent/Agent";
-import {BlogPost, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
+import {BlogPost, BlogPostFilterOptions, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
 import type {WPPost} from "wordpress-api-client/dist/types.js";
 import {WpApiClient} from "wordpress-api-client/dist/wp-api-client.js";
@@ -17,6 +17,23 @@ export const WordPressBlogProviderOptionsSchema = z.object({
 
 export type WordPressBlogProviderOptions = z.infer<typeof WordPressBlogProviderOptionsSchema>;
 
+
+const wpToBlogPostStatusMap = {
+  publish: "published",
+  future: "scheduled",
+  draft: "draft",
+  pending: "pending",
+  private: "private"
+};
+
+const blogPostToWpStatusMap = {
+  published: "publish",
+  scheduled: "future",
+  draft: "draft",
+  pending: "pending",
+  private: "private"
+}
+
 function WPPostToBlogPost({id, date_gmt, modified_gmt, title, content, status}: Partial<WPPost>): BlogPost {
   if (! id) {
     throw new Error("Cannot convert WPPost to BlogPost: Missing required field: id");
@@ -31,20 +48,12 @@ function WPPostToBlogPost({id, date_gmt, modified_gmt, title, content, status}: 
     throw new Error("Cannot convert WPPost to BlogPost: Missing required field: status");
   }
 
-  const statusMap = {
-    publish: "published",
-    future: "scheduled",
-    draft: "draft",
-    pending: "pending",
-    private: "private"
-  };
-
   const now = new Date();
   return {
     id: id?.toString(),
     title: title?.rendered,
     content: content?.rendered,
-    status: (statusMap[status as keyof typeof statusMap] ?? "draft") as BlogPost["status"],
+    status: (wpToBlogPostStatusMap[status as keyof typeof wpToBlogPostStatusMap] ?? "draft") as BlogPost["status"],
     created_at: modified_gmt ? new Date(modified_gmt) : now,
     updated_at: modified_gmt ? new Date(modified_gmt) : now,
     published_at: date_gmt ? new Date(date_gmt) : now,
@@ -77,6 +86,26 @@ export default class WordPressBlogProvider implements BlogProvider {
 
   async getAllPosts(): Promise<BlogPost[]> {
     const posts = await this.client.post().find(new URLSearchParams('status=publish,future,draft,pending,private'));
+    return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
+  }
+
+  async getRecentPosts(filter: BlogPostFilterOptions, agent: Agent): Promise<BlogPost[]> {
+    const params = new URLSearchParams();
+    if (filter.status) {
+      params.append('status', blogPostToWpStatusMap[filter.status]);
+    } else {
+      params.append('status', 'publish,future,draft,pending,private');
+    }
+
+    if (filter.keyword) {
+      params.append('search', filter.keyword);
+    }
+
+    if (filter.limit) {
+      params.append('per_page', filter.limit.toString());
+    }
+
+    const posts = await this.client.post().find(params);
     return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
   }
 
