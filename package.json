@@ -11,7 +11,7 @@
     "@tokenring-ai/filesystem": "0.2.0",
     "@tokenring-ai/utility": "0.2.0",
     "wordpress-api-client": "^0.4.9",
-    "marked": "^17.0.1",
+    "marked": "^17.0.3",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"
   },
