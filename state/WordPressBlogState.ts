@@ -1,25 +1,21 @@
-import {ResetWhat} from "@tokenring-ai/agent/AgentEvents";
-import type {AgentStateSlice} from "@tokenring-ai/agent/types";
-import {z} from "zod";
+import {AgentStateSlice} from "@tokenring-ai/agent/types";
 import {WPPost} from "wordpress-api-client/src/types.js"
+import {z} from "zod";
 
 const serializationSchema = z.object({
   currentPost: z.any().nullable()
 });
 
-export class WordPressBlogState implements AgentStateSlice<typeof serializationSchema> {
-  readonly name = "WordPressBlogState";
-  serializationSchema = serializationSchema;
+export class WordPressBlogState extends AgentStateSlice<typeof serializationSchema> {
   currentPost: WPPost | null;
 
   constructor({currentPost}: { currentPost?: WPPost | null } = {}) {
+    super("WordPressBlogState",serializationSchema);
     this.currentPost = currentPost || null;
   }
 
-  reset(what: ResetWhat[]): void {
-    if (what.includes('chat')) {
-      this.currentPost = null;
-    }
+  reset(): void {
+    this.currentPost = null;
   }
 
   serialize(): z.output<typeof serializationSchema> {

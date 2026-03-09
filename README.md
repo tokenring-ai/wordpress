@@ -91,12 +91,14 @@ const WordPressBlogProviderOptionsSchema = z.object({
   - `data.content?: string` - Post content in Markdown
   - `data.tags?: string[]` - Array of tag names
   - `data.feature_image?: { id: string }` - Featured image attachment ID
+  - **Note**: Throws an error if a post is currently selected
 - `updatePost(data: UpdatePostData, agent: Agent): Promise<BlogPost>` - Update existing post
   - `data.title?: string` - Updated title
   - `data.content?: string` - Updated content in Markdown
   - `data.tags?: string[]` - Updated tags
   - `data.feature_image?: { id: string }` - Updated featured image
   - `data.status?: BlogPostStatus` - New status
+  - **Note**: Throws an error if no post is currently selected
 - `selectPostById(id: string, agent: Agent): Promise<BlogPost>` - Select a specific post as current
 - `clearCurrentPost(agent: Agent): Promise<void>` - Clear current post selection
 
@@ -111,6 +113,13 @@ WordPress status values are automatically mapped to BlogPost status values:
 | draft     | draft      |
 | pending   | pending    |
 | private   | private    |
+
+**Error Handling:**
+
+- `createPost`: Throws error if a post is currently selected ("A post is currently selected. Clear the selection before creating a new post.")
+- `updatePost`: Throws error if no post is currently selected ("No post is currently selected. Select a post before updating.")
+- `selectPostById`: Throws error if post not found ("Post with ID {id} not found")
+- `createPost`/`updatePost`: Throws error if feature_image.id is missing ("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?")
 
 ### WordPressCDNProvider
 
