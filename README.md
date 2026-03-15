@@ -31,7 +31,7 @@ This package requires the following dependencies:
 - `@tokenring-ai/filesystem` - File system utilities
 - `@tokenring-ai/utility` - Utility functions
 - `wordpress-api-client` - WordPress REST API client (^0.4.9)
-- `marked` - Markdown to HTML conversion (^17.0.3)
+- `marked` - Markdown to HTML conversion (^17.0.4)
 - `uuid` - UUID generation (^13.0.0)
 - `zod` - Schema validation (^4.3.6)
 
@@ -101,6 +101,12 @@ const WordPressBlogProviderOptionsSchema = z.object({
   - **Note**: Throws an error if no post is currently selected
 - `selectPostById(id: string, agent: Agent): Promise<BlogPost>` - Select a specific post as current
 - `clearCurrentPost(agent: Agent): Promise<void>` - Clear current post selection
+
+**Properties:**
+
+- `description: string` - Provider description
+- `cdnName: string` - CDN provider name
+- `imageGenerationModel: string` - AI image generation model
 
 **Status Mapping:**
 
@@ -174,7 +180,7 @@ const serializationSchema = z.object({
 
 **Methods:**
 
-- `reset(what: ResetWhat[]): void` - Reset state (handles 'chat' reset)
+- `reset(): void` - Reset state (clears current post)
 - `serialize(): z.output<typeof serializationSchema>` - Serialize state for checkpoints
 - `deserialize(data: z.output<typeof serializationSchema>): void` - Deserialize state from checkpoints
 - `show(): string[]` - Generate display string for current post
