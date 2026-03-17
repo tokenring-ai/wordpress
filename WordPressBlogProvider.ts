@@ -224,7 +224,7 @@ export default class WordPressBlogProvider implements BlogProvider {
           if (newTag) tagIds.push(newTag.id);
         }
       } catch (error) {
-        console.warn(`Failed to handle tag "${tagName}":`, error);
+        //console.warn(`Failed to handle tag "${tagName}":`, error);
       }
     }
     
