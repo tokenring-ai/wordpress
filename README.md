@@ -28,10 +28,9 @@ This package requires the following dependencies:
 - `@tokenring-ai/cdn` - CDN service and provider interfaces
 - `@tokenring-ai/agent` - Agent system and state management
 - `@tokenring-ai/blog` - Blog service interface
-- `@tokenring-ai/filesystem` - File system utilities
 - `@tokenring-ai/utility` - Utility functions
 - `wordpress-api-client` - WordPress REST API client (^0.4.9)
-- `marked` - Markdown to HTML conversion (^17.0.4)
+- `marked` - Markdown to HTML conversion (^17.0.5)
 - `uuid` - UUID generation (^13.0.0)
 - `zod` - Schema validation (^4.3.6)
 

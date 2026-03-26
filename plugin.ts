@@ -4,8 +4,8 @@ import {CDNConfigSchema, CDNService} from "@tokenring-ai/cdn";
 
 import {z} from "zod";
 import packageJSON from './package.json' with {type: 'json'};
-import WordPressBlogProvider, {WordPressBlogProviderOptionsSchema} from "./WordPressBlogProvider.js";
-import WordPressCDNProvider, {WordPressCDNProviderOptionsSchema} from "./WordPressCDNProvider.js";
+import WordPressBlogProvider, {WordPressBlogProviderOptionsSchema} from "./WordPressBlogProvider.ts";
+import WordPressCDNProvider, {WordPressCDNProviderOptionsSchema} from "./WordPressCDNProvider.ts";
 
 const packageConfigSchema = z.object({
   cdn: CDNConfigSchema.optional(),

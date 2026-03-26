@@ -1,5 +1,5 @@
 import {AgentStateSlice} from "@tokenring-ai/agent/types";
-import {WPPost} from "wordpress-api-client/src/types.js"
+import {WPPost} from "wordpress-api-client/src/types.ts"
 import {z} from "zod";
 
 const serializationSchema = z.object({

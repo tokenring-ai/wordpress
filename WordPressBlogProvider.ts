@@ -1,10 +1,10 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import {BlogPost, BlogPostFilterOptions, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
-import type {WPPost} from "wordpress-api-client/dist/types.js";
-import {WpApiClient} from "wordpress-api-client/dist/wp-api-client.js";
+import type {WPPost} from "wordpress-api-client/dist/types.ts";
+import {WpApiClient} from "wordpress-api-client/dist/wp-api-client.ts";
 import {z} from "zod";
-import {WordPressBlogState} from "./state/WordPressBlogState.js";
+import {WordPressBlogState} from "./state/WordPressBlogState.ts";
 
 export const WordPressBlogProviderOptionsSchema = z.object({
   url: z.string(),
@@ -32,7 +32,7 @@ const blogPostToWpStatusMap = {
   draft: "draft",
   pending: "pending",
   private: "private"
-}
+};
 
 function WPPostToBlogPost({id, date_gmt, modified_gmt, title, content, status}: Partial<WPPost>): BlogPost {
   if (! id) {
@@ -168,14 +168,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     }
 
     if (status) {
-      const statusMap = {
-        published: "publish",
-        scheduled: "future",
-        draft: "draft",
-        pending: "pending",
-        private: "private"
-      };
-      updateData.status = statusMap[status];
+      updateData.status = blogPostToWpStatusMap[status];
     }
 
     const result = await this.client.post().update(updateData, currentPost.id);
@@ -224,7 +217,7 @@ export default class WordPressBlogProvider implements BlogProvider {
           if (newTag) tagIds.push(newTag.id);
         }
       } catch (error) {
-        //console.warn(`Failed to handle tag "${tagName}":`, error);
+        //TODO: Should print this to the agent, but we don't have an agent object here
       }
     }
     
