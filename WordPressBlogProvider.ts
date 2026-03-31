@@ -2,7 +2,7 @@ import Agent from "@tokenring-ai/agent/Agent";
 import {BlogPost, BlogPostFilterOptions, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
 import type {WPPost} from "wordpress-api-client/dist/types.ts";
-import {WpApiClient} from "wordpress-api-client/dist/wp-api-client.ts";
+import {WpApiClient} from "wordpress-api-client/src/wp-api-client.ts";
 import {z} from "zod";
 import {WordPressBlogState} from "./state/WordPressBlogState.ts";
 
