@@ -1,43 +1,68 @@
 import {TokenRingPlugin} from "@tokenring-ai/app";
-import {BlogConfigSchema, BlogService} from "@tokenring-ai/blog";
-import {CDNConfigSchema, CDNService} from "@tokenring-ai/cdn";
-
+import {BlogService} from "@tokenring-ai/blog";
+import {CDNService} from "@tokenring-ai/cdn";
 import {z} from "zod";
-import packageJSON from './package.json' with {type: 'json'};
-import WordPressBlogProvider, {WordPressBlogProviderOptionsSchema} from "./WordPressBlogProvider.ts";
-import WordPressCDNProvider, {WordPressCDNProviderOptionsSchema} from "./WordPressCDNProvider.ts";
+import packageJSON from "./package.json" with {type: "json"};
+import {WordPressConfigSchema, type WordPressAccount} from "./schema.ts";
+import WordPressBlogProvider from "./WordPressBlogProvider.ts";
+import WordPressCDNProvider from "./WordPressCDNProvider.ts";
 
 const packageConfigSchema = z.object({
-  cdn: CDNConfigSchema.optional(),
-  blog: BlogConfigSchema.optional(),
+  wordpress: WordPressConfigSchema.prefault({accounts: {}}),
 });
 
+function addAccountsFromEnv(accounts: Record<string, Partial<WordPressAccount>>) {
+  for (const [key, value] of Object.entries(process.env)) {
+    const match = key.match(/^WORDPRESS_URL(\d*)$/);
+    if (!match || !value) continue;
+    const n = match[1];
+    const username = process.env[`WORDPRESS_USERNAME${n}`];
+    const password = process.env[`WORDPRESS_PASSWORD${n}`];
+    if (!username || !password) continue;
+    const name = process.env[`WORDPRESS_NAME${n}`] ?? new URL(value).hostname;
+    accounts[name] = {
+      url: value,
+      username,
+      password,
+      blog: {
+        description: process.env[`WORDPRESS_DESCRIPTION${n}`] ?? `WordPress (${name})`,
+        imageGenerationModel: process.env[`WORDPRESS_IMAGE_MODEL${n}`] ?? "gpt-image-1",
+        cdn: process.env[`WORDPRESS_CDN${n}`] ?? name,
+      },
+      cdn: {}
+    };
+  }
+}
 
 export default {
   name: packageJSON.name,
+  displayName: "WordPress Integration",
   version: packageJSON.version,
   description: packageJSON.description,
   install(app, config) {
-    if (config.cdn) {
-      app.services.waitForItemByType(CDNService, cdnService => {
-        for (const name in config.cdn!.providers) {
-          const provider = config.cdn!.providers[name];
-          if (provider.type === "wordpress") {
-            cdnService.registerProvider(name, new WordPressCDNProvider(WordPressCDNProviderOptionsSchema.parse(provider)));
-          }
-        }
-      });
-    }
-    if (config.blog) {
-      app.services.waitForItemByType(BlogService, blogService => {
-        for (const name in config.blog!.providers) {
-          const provider = config.blog!.providers[name];
-          if (provider.type === "wordpress") {
-            blogService.registerBlog(name, new WordPressBlogProvider(WordPressBlogProviderOptionsSchema.parse(provider)));
-          }
-        }
-      });
+    addAccountsFromEnv(config.wordpress.accounts);
+    //console.log(config.wordpress.accounts);
+
+    for (const [name, account] of Object.entries(config.wordpress.accounts)) {
+      if (account.cdn) {
+        app.services.waitForItemByType(CDNService, cdnService => {
+          cdnService.registerProvider(name, new WordPressCDNProvider({url: account.url, username: account.username, password: account.password}));
+        });
+      }
+
+      if (account.blog) {
+        app.services.waitForItemByType(BlogService, blogService => {
+          blogService.registerBlog(name, new WordPressBlogProvider({
+            url: account.url,
+            username: account.username,
+            password: account.password,
+            description: account.blog!.description,
+            imageGenerationModel: account.blog!.imageGenerationModel,
+            cdn: account.blog!.cdn ?? name,
+          }));
+        });
+      }
     }
   },
-  config: packageConfigSchema
+  config: packageConfigSchema,
 } satisfies TokenRingPlugin<typeof packageConfigSchema>;
