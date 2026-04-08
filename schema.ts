@@ -6,7 +6,6 @@ export const WordPressAccountCDNSchema = z.object({
 
 export const WordPressAccountBlogSchema = z.object({
   description: z.string().default("WordPress blog"),
-  imageGenerationModel: z.string().default("gpt-image-1"),
   cdn: z.string(),
 });
 

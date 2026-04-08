@@ -3,7 +3,7 @@ import {BlogService} from "@tokenring-ai/blog";
 import {CDNService} from "@tokenring-ai/cdn";
 import {z} from "zod";
 import packageJSON from "./package.json" with {type: "json"};
-import {WordPressConfigSchema, type WordPressAccount} from "./schema.ts";
+import {type WordPressAccount, WordPressConfigSchema} from "./schema.ts";
 import WordPressBlogProvider from "./WordPressBlogProvider.ts";
 import WordPressCDNProvider from "./WordPressCDNProvider.ts";
 
@@ -26,7 +26,6 @@ function addAccountsFromEnv(accounts: Record<string, Partial<WordPressAccount>>)
       password,
       blog: {
         description: process.env[`WORDPRESS_DESCRIPTION${n}`] ?? `WordPress (${name})`,
-        imageGenerationModel: process.env[`WORDPRESS_IMAGE_MODEL${n}`] ?? "gpt-image-1",
         cdn: process.env[`WORDPRESS_CDN${n}`] ?? name,
       },
       cdn: {}
@@ -41,7 +40,6 @@ export default {
   description: packageJSON.description,
   install(app, config) {
     addAccountsFromEnv(config.wordpress.accounts);
-    //console.log(config.wordpress.accounts);
 
     for (const [name, account] of Object.entries(config.wordpress.accounts)) {
       if (account.cdn) {
@@ -57,7 +55,6 @@ export default {
             username: account.username,
             password: account.password,
             description: account.blog!.description,
-            imageGenerationModel: account.blog!.imageGenerationModel,
             cdn: account.blog!.cdn ?? name,
           }));
         });

@@ -1,16 +1,13 @@
-import Agent from "@tokenring-ai/agent/Agent";
-import type {AgentCreationContext} from "@tokenring-ai/agent/types";
 import {BlogPost, BlogPostFilterOptions, type BlogPostListItem, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
-import type {WPPost} from "wordpress-api-client/dist/types.ts";
 import WpApiClient from "wordpress-api-client";
+import type {WPPost} from "wordpress-api-client/dist/types.ts";
 import {z} from "zod";
 
 export const WordPressBlogProviderOptionsSchema = z.object({
   url: z.string(),
   username: z.string(),
   password: z.string(),
-  imageGenerationModel: z.string(),
   cdn: z.string(),
   description: z.string(),
 });
@@ -74,12 +71,10 @@ export default class WordPressBlogProvider implements BlogProvider {
   private readonly client: WpApiClient;
   description: string;
   cdnName: string;
-  imageGenerationModel: string;
 
   constructor(options: WordPressBlogProviderOptions) {
     this.description = options.description;
     this.cdnName = options.cdn;
-    this.imageGenerationModel = options.imageGenerationModel;
 
     this.client = new WpApiClient(options.url, {
       auth: {type: "basic", username: options.username, password: options.password},
@@ -89,6 +84,7 @@ export default class WordPressBlogProvider implements BlogProvider {
   async getAllPosts(): Promise<BlogPost[]> {
     const params = new URLSearchParams();
     params.append("status", allStatuses);
+    params.append("order", "desc");
     params.append("_fields", listItemFields);
 
     const posts = await this.client.post().find(params);
@@ -99,6 +95,7 @@ export default class WordPressBlogProvider implements BlogProvider {
   async getRecentPosts(filter: BlogPostFilterOptions): Promise<BlogPost[]> {
     const params = new URLSearchParams();
     params.append("status", filter.status ? blogPostToWpStatusMap[filter.status] : allStatuses);
+    params.append("order", "desc");
     params.append("_fields", listItemFields);
     if (filter.keyword) params.append("search", filter.keyword);
     if (filter.limit) params.append("per_page", filter.limit.toString());
