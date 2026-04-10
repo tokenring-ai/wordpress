@@ -1,4 +1,4 @@
-import {BlogPost, BlogPostFilterOptions, type BlogPostListItem, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
+import type {BlogPost, BlogPostFilterOptions, BlogPostListItem, BlogProvider, CreatePostData, UpdatePostData,} from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
 import WpApiClient from "wordpress-api-client";
 import type {WPPost} from "wordpress-api-client/dist/types.ts";
@@ -12,7 +12,9 @@ export const WordPressBlogProviderOptionsSchema = z.object({
   description: z.string(),
 });
 
-export type WordPressBlogProviderOptions = z.infer<typeof WordPressBlogProviderOptionsSchema>;
+export type WordPressBlogProviderOptions = z.infer<
+  typeof WordPressBlogProviderOptionsSchema
+>;
 
 const wpToBlogPostStatusMap = {
   publish: "published",
@@ -30,12 +32,30 @@ const blogPostToWpStatusMap = {
   private: "private",
 } as const;
 
-function WPPostListItemToBlogPostListItem({id, date_gmt, modified_gmt, title, status, _embedded}: Partial<WPPost>): BlogPostListItem {
-  if (!id) throw new Error("Cannot convert WPPost to BlogPost: Missing required field: id");
-  if (!title) throw new Error("Cannot convert WPPost to BlogPost: Missing required field: title");
-  if (!status) throw new Error("Cannot convert WPPost to BlogPost: Missing required field: status");
+function WPPostListItemToBlogPostListItem({
+                                            id,
+                                            date_gmt,
+                                            modified_gmt,
+                                            title,
+                                            status,
+                                            _embedded,
+                                          }: Partial<WPPost>): BlogPostListItem {
+  if (!id)
+    throw new Error(
+      "Cannot convert WPPost to BlogPost: Missing required field: id",
+    );
+  if (!title)
+    throw new Error(
+      "Cannot convert WPPost to BlogPost: Missing required field: title",
+    );
+  if (!status)
+    throw new Error(
+      "Cannot convert WPPost to BlogPost: Missing required field: status",
+    );
 
-  const featuredMedia = _embedded?.["wp:featuredmedia"]?.[0] as { id: number; link: string} | undefined;
+  const featuredMedia = _embedded?.["wp:featuredmedia"]?.[0] as
+    | { id: number; link: string }
+    | undefined;
   //console.log(JSON.stringify(_embedded, null, 2));
   //console.log(`Featured media: ${JSON.stringify(featuredMedia, null, 2)}`);
 
@@ -43,13 +63,17 @@ function WPPostListItemToBlogPostListItem({id, date_gmt, modified_gmt, title, st
   return {
     id: id.toString(),
     title: title.rendered,
-    ...(featuredMedia ? {
-      feature_image: {
-        id: featuredMedia.id.toString(),
-        url: featuredMedia.link,
+    ...(featuredMedia
+      ? {
+        feature_image: {
+          id: featuredMedia.id.toString(),
+          url: featuredMedia.link,
+        },
       }
-    } : undefined),
-    status: (wpToBlogPostStatusMap[status as keyof typeof wpToBlogPostStatusMap] ?? "draft") as BlogPost["status"],
+      : undefined),
+    status: (wpToBlogPostStatusMap[
+      status as keyof typeof wpToBlogPostStatusMap
+      ] ?? "draft") as BlogPost["status"],
     created_at: modified_gmt ? new Date(modified_gmt).getTime() : now,
     updated_at: modified_gmt ? new Date(modified_gmt).getTime() : now,
     published_at: date_gmt ? new Date(date_gmt).getTime() : undefined,
@@ -60,10 +84,11 @@ function WPPostToBlogPost(args: Partial<WPPost>): BlogPost {
   return {
     ...WPPostListItemToBlogPostListItem(args),
     html: args.content?.rendered ?? "",
-  }
+  };
 }
 
-const listItemFields = "id,title,status,date_gmt,modified_gmt,featured_media,_links";
+const listItemFields =
+  "id,title,status,date_gmt,modified_gmt,featured_media,_links";
 const fullItemFields = `${listItemFields},content`;
 const allStatuses = "publish,future,draft,pending,private";
 
@@ -77,7 +102,11 @@ export default class WordPressBlogProvider implements BlogProvider {
     this.cdnName = options.cdn;
 
     this.client = new WpApiClient(options.url, {
-      auth: {type: "basic", username: options.username, password: options.password},
+      auth: {
+        type: "basic",
+        username: options.username,
+        password: options.password,
+      },
     });
   }
 
@@ -89,12 +118,15 @@ export default class WordPressBlogProvider implements BlogProvider {
 
     const posts = await this.client.post().find(params);
     //console.log(JSON.stringify(posts, null, 2));
-    return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
+    return (posts.filter((post) => post) as WPPost[]).map(WPPostToBlogPost);
   }
 
   async getRecentPosts(filter: BlogPostFilterOptions): Promise<BlogPost[]> {
     const params = new URLSearchParams();
-    params.append("status", filter.status ? blogPostToWpStatusMap[filter.status] : allStatuses);
+    params.append(
+      "status",
+      filter.status ? blogPostToWpStatusMap[filter.status] : allStatuses,
+    );
     params.append("order", "desc");
     params.append("_fields", listItemFields);
     if (filter.keyword) params.append("search", filter.keyword);
@@ -102,13 +134,15 @@ export default class WordPressBlogProvider implements BlogProvider {
 
     const posts = await this.client.post().find(params);
     //console.log(JSON.stringify(posts, null, 2));
-    return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
+    return (posts.filter((post) => post) as WPPost[]).map(WPPostToBlogPost);
   }
 
   async createPost(data: CreatePostData): Promise<BlogPost> {
     const {title, html, tags = [], feature_image} = data;
     if (feature_image && !feature_image.id) {
-      throw new Error("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?");
+      throw new Error(
+        "Wordpress feature image must be an attachment id - is wordpress not set as the CDN?",
+      );
     }
     const result = await this.client.post().create({
       title: {rendered: title},
@@ -127,15 +161,22 @@ export default class WordPressBlogProvider implements BlogProvider {
 
     const updateData: Partial<WPPost> = {id: parseInt(id, 10)};
     if (title) updateData.title = {rendered: title};
-    if (html) updateData.content = {rendered: await marked(html), protected: false};
+    if (html)
+      updateData.content = {rendered: await marked(html), protected: false};
     if (tags) updateData.tags = await this.getOrCreateTagIds(tags);
     if (feature_image) {
-      if (feature_image.id) updateData.featured_media = parseInt(feature_image.id, 10);
-      else throw new Error("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?");
+      if (feature_image.id)
+        updateData.featured_media = parseInt(feature_image.id, 10);
+      else
+        throw new Error(
+          "Wordpress feature image must be an attachment id - is wordpress not set as the CDN?",
+        );
     }
     if (status) updateData.status = blogPostToWpStatusMap[status];
 
-    const result = await this.client.post().update(updateData, parseInt(id, 10));
+    const result = await this.client
+      .post()
+      .update(updateData, parseInt(id, 10));
     if (!result) throw new Error("Failed to update post");
     return WPPostToBlogPost(result);
   }
@@ -155,15 +196,20 @@ export default class WordPressBlogProvider implements BlogProvider {
     const tagIds: number[] = [];
     for (const tagName of tagNames) {
       try {
-        const existingTags = await this.client.postTag().find(new URLSearchParams({search: tagName}));
-        const existingTag = existingTags.find(tag => tag?.name?.toLowerCase() === tagName.toLowerCase());
+        const existingTags = await this.client
+          .postTag()
+          .find(new URLSearchParams({search: tagName}));
+        const existingTag = existingTags.find(
+          (tag) => tag?.name?.toLowerCase() === tagName.toLowerCase(),
+        );
         if (existingTag) {
           tagIds.push(existingTag.id);
         } else {
           const newTag = await this.client.postTag().create({name: tagName});
           if (newTag) tagIds.push(newTag.id);
         }
-      } catch {}
+      } catch {
+      }
     }
     return tagIds;
   }

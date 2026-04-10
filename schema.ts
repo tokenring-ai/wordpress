@@ -1,8 +1,6 @@
 import {z} from "zod";
 
-export const WordPressAccountCDNSchema = z.object({
-
-});
+export const WordPressAccountCDNSchema = z.object({});
 
 export const WordPressAccountBlogSchema = z.object({
   description: z.string().default("WordPress blog"),
