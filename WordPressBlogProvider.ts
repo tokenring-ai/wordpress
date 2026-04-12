@@ -1,4 +1,4 @@
-import type {BlogPost, BlogPostFilterOptions, BlogPostListItem, BlogProvider, CreatePostData, UpdatePostData,} from "@tokenring-ai/blog/BlogProvider";
+import type {BlogPost, BlogPostFilterOptions, BlogPostListItem, BlogProvider, CreatePostData, UpdatePostData} from "@tokenring-ai/blog/BlogProvider";
 import {marked} from "marked";
 import WpApiClient from "wordpress-api-client";
 import type {WPPost} from "wordpress-api-client/dist/types.ts";
