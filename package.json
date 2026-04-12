@@ -4,9 +4,7 @@
   "description": "WordPress integration for Token Ring",
   "dependencies": {
     "@tokenring-ai/app": "0.2.0",
-    "@tokenring-ai/ai-client": "0.2.0",
     "@tokenring-ai/cdn": "0.2.0",
-    "@tokenring-ai/agent": "0.2.0",
     "@tokenring-ai/blog": "0.2.0",
     "@tokenring-ai/utility": "0.2.0",
     "wordpress-api-client": "^0.4.9",
@@ -16,7 +14,6 @@
   },
   "devDependencies": {
     "vitest": "^4.1.1",
-    "@vitest/coverage-v8": "^4.1.2",
     "typescript": "^6.0.2"
   },
   "exports": {
