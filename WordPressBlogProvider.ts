@@ -74,9 +74,9 @@ function WPPostListItemToBlogPostListItem({
     status: (wpToBlogPostStatusMap[
       status as keyof typeof wpToBlogPostStatusMap
       ] ?? "draft") as BlogPost["status"],
-    created_at: modified_gmt ? new Date(modified_gmt).getTime() : now,
-    updated_at: modified_gmt ? new Date(modified_gmt).getTime() : now,
-    published_at: date_gmt ? new Date(date_gmt).getTime() : undefined,
+    created_at: modified_gmt ? Date.parse(modified_gmt) : now,
+    updated_at: modified_gmt ? Date.parse(modified_gmt) : now,
+    published_at: date_gmt ? Date.parse(date_gmt) : undefined,
   };
 }
 
