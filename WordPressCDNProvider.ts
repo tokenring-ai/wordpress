@@ -1,9 +1,9 @@
-import {CDNProvider} from "@tokenring-ai/cdn";
-import type {UploadOptions, UploadResult} from "@tokenring-ai/cdn/types";
+import { CDNProvider } from "@tokenring-ai/cdn";
+import type { UploadOptions, UploadResult } from "@tokenring-ai/cdn/types";
 import requireFields from "@tokenring-ai/utility/object/requireFields";
-import {v4 as uuid} from "uuid";
+import { v4 as uuid } from "uuid";
 import WpApiClient from "wordpress-api-client";
-import {z} from "zod";
+import { z } from "zod";
 
 export const WordPressCDNProviderOptionsSchema = z.object({
   url: z.string(),
@@ -11,9 +11,7 @@ export const WordPressCDNProviderOptionsSchema = z.object({
   password: z.string(),
 });
 
-export type WordPressCDNProviderOptions = z.infer<
-  typeof WordPressCDNProviderOptionsSchema
->;
+export type WordPressCDNProviderOptions = z.infer<typeof WordPressCDNProviderOptionsSchema>;
 
 export default class WordPressCDNProvider extends CDNProvider {
   name: string = "WordPressCDN";
@@ -23,12 +21,8 @@ export default class WordPressCDNProvider extends CDNProvider {
 
   constructor(opts: WordPressCDNProviderOptions) {
     super();
-    const {url, username, password} = opts;
-    requireFields(
-      opts,
-      ["url", "username", "password"],
-      "WordPressCDNProvider",
-    );
+    const { url, username, password } = opts;
+    requireFields(opts, ["url", "username", "password"], "WordPressCDNProvider");
 
     this.client = new WpApiClient(url, {
       auth: {
@@ -43,6 +37,6 @@ export default class WordPressCDNProvider extends CDNProvider {
     const filename = options?.filename || `${uuid()}.jpg`;
 
     const media = await this.client.media().create(filename, data);
-    return {url: media.source_url, id: media.id.toString()};
+    return { url: media.source_url, id: media.id.toString() };
   }
 }
