@@ -9,7 +9,7 @@
     "@tokenring-ai/utility": "0.2.0",
     "wordpress-api-client": "^0.4.9",
     "marked": "^17.0.6",
-    "uuid": "^13.0.0",
+    "uuid": "14.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
