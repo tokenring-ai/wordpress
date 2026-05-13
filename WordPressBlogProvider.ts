@@ -71,9 +71,9 @@ const fullItemFields = `${listItemFields},content`;
 const allStatuses = "publish,future,draft,pending,private";
 
 export default class WordPressBlogProvider implements BlogProvider {
-  private readonly client: WpApiClient;
   description: string;
   cdnName: string;
+  private readonly client: WpApiClient;
 
   constructor(options: WordPressBlogProviderOptions) {
     this.description = options.description;
