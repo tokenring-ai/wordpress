@@ -42,33 +42,29 @@ export default {
     addAccountsFromEnv(config.wordpress.accounts);
 
     for (const [name, account] of Object.entries(config.wordpress.accounts)) {
-      if (account.cdn) {
-        app.services.waitForItemByType(CDNService, cdnService => {
-          cdnService.registerProvider(
-            name,
-            new WordPressCDNProvider({
-              url: account.url,
-              username: account.username,
-              password: account.password,
-            }),
-          );
-        });
-      }
+      app.services.waitForItemByType(CDNService, cdnService => {
+        cdnService.registerProvider(
+          name,
+          new WordPressCDNProvider({
+            url: account.url,
+            username: account.username,
+            password: account.password,
+          }),
+        );
+      });
 
-      if (account.blog) {
-        app.services.waitForItemByType(BlogService, blogService => {
-          blogService.registerBlog(
-            name,
-            new WordPressBlogProvider({
-              url: account.url,
-              username: account.username,
-              password: account.password,
-              description: account.blog.description,
-              cdn: account.blog.cdn ?? name,
-            }),
-          );
-        });
-      }
+      app.services.waitForItemByType(BlogService, blogService => {
+        blogService.registerBlog(
+          name,
+          new WordPressBlogProvider({
+            url: account.url,
+            username: account.username,
+            password: account.password,
+            description: account.blog.description,
+            cdn: account.blog.cdn,
+          }),
+        );
+      });
     }
   },
   config: packageConfigSchema,

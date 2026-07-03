@@ -52,7 +52,7 @@ function WPPostListItemToBlogPostListItem({ id, date_gmt, modified_gmt, title, s
           },
         }
       : undefined),
-    status: (wpToBlogPostStatusMap[status as keyof typeof wpToBlogPostStatusMap] ?? "draft") as BlogPost["status"],
+    status: wpToBlogPostStatusMap[status as keyof typeof wpToBlogPostStatusMap] satisfies BlogPost["status"],
     created_at: modified_gmt ? Date.parse(modified_gmt) : now,
     updated_at: modified_gmt ? Date.parse(modified_gmt) : now,
     published_at: date_gmt ? Date.parse(date_gmt) : undefined,
@@ -154,7 +154,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     const post = await this.client.post().find(params, parseInt(id, 10));
     //console.log(JSON.stringify(post, null, 2));
 
-    if (!post?.[0]) throw new Error(`Post with ID ${id} not found`);
+    if (!post[0]) throw new Error(`Post with ID ${id} not found`);
     return WPPostToBlogPost(post[0]);
   }
 
@@ -163,7 +163,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     for (const tagName of tagNames) {
       try {
         const existingTags = await this.client.postTag().find(new URLSearchParams({ search: tagName }));
-        const existingTag = existingTags.find(tag => tag?.name?.toLowerCase() === tagName.toLowerCase());
+        const existingTag = existingTags.find(tag => tag?.name.toLowerCase() === tagName.toLowerCase());
         if (existingTag) {
           tagIds.push(existingTag.id);
         } else {
