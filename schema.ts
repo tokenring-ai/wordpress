@@ -9,8 +9,8 @@ export const WordPressAccountBlogSchema = z.object({
 
 export const WordPressAccountSchema = z.object({
   url: z.string(),
-  username: z.string(),
-  password: z.string(),
+  username: z.string().meta({ description: "WordPress username" }),
+  password: z.string().meta({ sensitive: true, description: "WordPress application password" }),
   blog: WordPressAccountBlogSchema,
   cdn: WordPressAccountCDNSchema,
 });
