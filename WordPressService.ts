@@ -2,7 +2,7 @@ import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
 import { BlogService } from "@tokenring-ai/blog";
 import { CDNService } from "@tokenring-ai/cdn";
-import { deepEqual } from "@tokenring-ai/one-frontend/src/lib/utils";
+import deepEqual from "@tokenring-ai/utility/object/deepEqual";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import type { WordPressAccount } from "./schema.ts";
 import WordPressBlogProvider from "./WordPressBlogProvider.ts";
