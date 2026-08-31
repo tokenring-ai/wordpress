@@ -14,7 +14,7 @@ export default {
   version: packageJSON.version,
   description: packageJSON.description,
   install(app) {
-    app.addService(new WordPressService());
+    app.addService(WordPressService, new WordPressService());
   },
   reconfigure(app, config) {
     app.requireService(WordPressService).reconfigure(config.wordpress.accounts, app);

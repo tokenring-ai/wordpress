@@ -1,6 +1,5 @@
 import type { BlogPost, BlogPostFilterOptions, BlogPostListItem, BlogProvider, CreatePostData, UpdatePostData } from "@tokenring-ai/blog/BlogProvider";
 import { stripUndefinedKeys } from "@tokenring-ai/utility/object/stripObject";
-import { marked } from "marked";
 import WpApiClient from "wordpress-api-client";
 import type { WPPost } from "wordpress-api-client/dist/types.ts";
 import { z } from "zod";
@@ -44,6 +43,7 @@ function WPPostListItemToBlogPostListItem({ id, date_gmt, modified_gmt, title, s
   return stripUndefinedKeys({
     id: id.toString(),
     title: title.rendered,
+    tags: [],
     ...(featuredMedia
       ? {
           feature_image: {
@@ -53,7 +53,7 @@ function WPPostListItemToBlogPostListItem({ id, date_gmt, modified_gmt, title, s
         }
       : undefined),
     status: wpToBlogPostStatusMap[status as keyof typeof wpToBlogPostStatusMap] satisfies BlogPost["status"],
-    created_at: modified_gmt ? Date.parse(modified_gmt) : now,
+    created_at: date_gmt ? Date.parse(date_gmt) : now,
     updated_at: modified_gmt ? Date.parse(modified_gmt) : now,
     published_at: date_gmt ? Date.parse(date_gmt) : undefined,
   });
@@ -66,7 +66,7 @@ function WPPostToBlogPost(args: Partial<WPPost>): BlogPost {
   };
 }
 
-const listItemFields = "id,title,status,date_gmt,modified_gmt,featured_media,_links";
+const listItemFields = "id,title,status,date_gmt,modified_gmt,featured_media,_links,_embedded";
 const fullItemFields = `${listItemFields},content`;
 const allStatuses = "publish,future,draft,pending,private";
 
@@ -88,7 +88,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     });
   }
 
-  async getAllPosts(): Promise<BlogPost[]> {
+  async getAllPosts(): Promise<BlogPostListItem[]> {
     const params = new URLSearchParams();
     params.append("status", allStatuses);
     params.append("order", "desc");
@@ -96,10 +96,10 @@ export default class WordPressBlogProvider implements BlogProvider {
 
     const posts = await this.client.post().find(params);
     //console.log(JSON.stringify(posts, null, 2));
-    return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
+    return (posts.filter(post => post) as WPPost[]).map(WPPostListItemToBlogPostListItem);
   }
 
-  async getRecentPosts(filter: BlogPostFilterOptions): Promise<BlogPost[]> {
+  async getRecentPosts(filter: BlogPostFilterOptions): Promise<BlogPostListItem[]> {
     const params = new URLSearchParams();
     params.append("status", filter.status ? blogPostToWpStatusMap[filter.status] : allStatuses);
     params.append("order", "desc");
@@ -109,7 +109,7 @@ export default class WordPressBlogProvider implements BlogProvider {
 
     const posts = await this.client.post().find(params);
     //console.log(JSON.stringify(posts, null, 2));
-    return (posts.filter(post => post) as WPPost[]).map(WPPostToBlogPost);
+    return (posts.filter(post => post) as WPPost[]).map(WPPostListItemToBlogPostListItem);
   }
 
   async createPost(data: CreatePostData): Promise<BlogPost> {
@@ -119,10 +119,10 @@ export default class WordPressBlogProvider implements BlogProvider {
     }
     const result = await this.client.post().create({
       title: { rendered: title },
-      content: { rendered: await marked(html), protected: false },
+      content: { rendered: html, protected: false },
       status: "draft",
       tags: tags.length > 0 ? await this.getOrCreateTagIds(tags) : [],
-      feature_image,
+      ...(feature_image?.id ? { featured_media: parseInt(feature_image.id, 10) } : {}),
     });
 
     if (!result) throw new Error("Failed to create post");
@@ -134,7 +134,7 @@ export default class WordPressBlogProvider implements BlogProvider {
 
     const updateData: Partial<WPPost> = { id: parseInt(id, 10) };
     if (title) updateData.title = { rendered: title };
-    if (html) updateData.content = { rendered: await marked(html), protected: false };
+    if (html) updateData.content = { rendered: html, protected: false };
     if (tags) updateData.tags = await this.getOrCreateTagIds(tags);
     if (feature_image) {
       if (feature_image.id) updateData.featured_media = parseInt(feature_image.id, 10);
@@ -161,16 +161,14 @@ export default class WordPressBlogProvider implements BlogProvider {
   private async getOrCreateTagIds(tagNames: string[]): Promise<number[]> {
     const tagIds: number[] = [];
     for (const tagName of tagNames) {
-      try {
-        const existingTags = await this.client.postTag().find(new URLSearchParams({ search: tagName }));
-        const existingTag = existingTags.find(tag => tag?.name.toLowerCase() === tagName.toLowerCase());
-        if (existingTag) {
-          tagIds.push(existingTag.id);
-        } else {
-          const newTag = await this.client.postTag().create({ name: tagName });
-          if (newTag) tagIds.push(newTag.id);
-        }
-      } catch {}
+      const existingTags = await this.client.postTag().find(new URLSearchParams({ search: tagName }));
+      const existingTag = existingTags.find(tag => tag?.name.toLowerCase() === tagName.toLowerCase());
+      if (existingTag) {
+        tagIds.push(existingTag.id);
+      } else {
+        const newTag = await this.client.postTag().create({ name: tagName });
+        if (newTag) tagIds.push(newTag.id);
+      }
     }
     return tagIds;
   }
