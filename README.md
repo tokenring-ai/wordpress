@@ -83,6 +83,10 @@ const WordPressBlogProviderOptionsSchema = z.object({
 - `data.html: string` - Post content in HTML (Markdown should be converted before passing)
 - `data.tags?: string[]` - Array of tag names
 - `data.feature_image?: { id: string, url?: string }` - Featured image attachment ID and optional URL
+- `searchPosts(options: BlogPostSearchOptions): Promise<BlogPostSearchResult>` - One page of posts using the REST API's
+  `search`, `status`, `orderby`/`order`, `offset` and `per_page` (requests above 100 posts are split; one extra post is
+  fetched to report `hasMore`; `total` is not reported)
+- `deletePost(id: string): Promise<void>` - Moves the post to the WordPress trash
 - `updatePost(id: string, data: UpdatePostData): Promise<BlogPost>` - Update existing post
 - `data.title?: string` - Updated title
 - `data.html?: string` - Updated content in HTML

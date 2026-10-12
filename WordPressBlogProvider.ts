@@ -1,4 +1,14 @@
-import type { BlogPost, BlogPostFilterOptions, BlogPostListItem, BlogProvider, CreatePostData, UpdatePostData } from "@tokenring-ai/blog/BlogProvider";
+import type {
+  BlogPost,
+  BlogPostFilterOptions,
+  BlogPostListItem,
+  BlogPostSearchOptions,
+  BlogPostSearchResult,
+  BlogPostSort,
+  BlogProvider,
+  CreatePostData,
+  UpdatePostData,
+} from "@tokenring-ai/blog/BlogProvider";
 import { stripUndefinedKeys } from "@tokenring-ai/utility/object/stripObject";
 import WpApiClient from "wordpress-api-client";
 import type { WPPost } from "wordpress-api-client/dist/types.ts";
@@ -66,6 +76,41 @@ function WPPostToBlogPost(args: Partial<WPPost>): BlogPost {
   };
 }
 
+/** WordPress `orderby`/`order` for each sort the blog UI offers. */
+const WP_ORDER: Record<BlogPostSort, { orderby: string; order: "asc" | "desc" }> = {
+  updated: { orderby: "modified", order: "desc" },
+  newest: { orderby: "date", order: "desc" },
+  oldest: { orderby: "date", order: "asc" },
+  title: { orderby: "title", order: "asc" },
+};
+
+/** The REST API caps `per_page` at 100. */
+const WP_MAX_PER_PAGE = 100;
+
+/**
+ * Query strings for one search, split into requests of at most 100 posts. One
+ * extra post is requested beyond `limit` so the caller can tell whether more
+ * match without a separate count request.
+ */
+export function wordPressSearchQueries(options: BlogPostSearchOptions): URLSearchParams[] {
+  const { keyword, status, sort, offset, limit } = options;
+  const queries: URLSearchParams[] = [];
+  const wanted = limit + 1;
+  for (let fetched = 0; fetched < wanted; fetched += WP_MAX_PER_PAGE) {
+    const params = new URLSearchParams();
+    params.append("status", status ? blogPostToWpStatusMap[status] : allStatuses);
+    params.append("orderby", WP_ORDER[sort].orderby);
+    params.append("order", WP_ORDER[sort].order);
+    params.append("_fields", listItemFields);
+    params.append("offset", String(offset + fetched));
+    params.append("per_page", String(Math.min(WP_MAX_PER_PAGE, wanted - fetched)));
+    const trimmed = keyword?.trim();
+    if (trimmed) params.append("search", trimmed);
+    queries.push(params);
+  }
+  return queries;
+}
+
 const listItemFields = "id,title,status,date_gmt,modified_gmt,featured_media,_links,_embedded";
 const fullItemFields = `${listItemFields},content`;
 const allStatuses = "publish,future,draft,pending,private";
@@ -110,6 +155,25 @@ export default class WordPressBlogProvider implements BlogProvider {
     const posts = await this.client.post().find(params);
     //console.log(JSON.stringify(posts, null, 2));
     return (posts.filter(post => post) as WPPost[]).map(WPPostListItemToBlogPostListItem);
+  }
+
+  async searchPosts(options: BlogPostSearchOptions): Promise<BlogPostSearchResult> {
+    const found: WPPost[] = [];
+    for (const query of wordPressSearchQueries(options)) {
+      const page = (await this.client.post().find(query)).filter(post => post) as WPPost[];
+      found.push(...page);
+      if (page.length < Number(query.get("per_page"))) break;
+    }
+    return {
+      posts: found.slice(0, options.limit).map(WPPostListItemToBlogPostListItem),
+      hasMore: found.length > options.limit,
+    };
+  }
+
+  /** Moves the post to the WordPress trash, where it can still be restored from wp-admin. */
+  async deletePost(id: string): Promise<void> {
+    const [result] = await this.client.post().delete(parseInt(id, 10));
+    if (!result) throw new Error(`Failed to delete post ${id}`);
   }
 
   async createPost(data: CreatePostData): Promise<BlogPost> {
