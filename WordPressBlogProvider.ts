@@ -40,40 +40,98 @@ const blogPostToWpStatusMap = {
   private: "private",
 } as const;
 
-function WPPostListItemToBlogPostListItem({ id, date_gmt, modified_gmt, title, status, _embedded }: Partial<WPPost>): BlogPostListItem {
+type WpFeaturedMedia = { id?: number; source_url?: string };
+type WpTerm = { name?: unknown; taxonomy?: unknown };
+
+/** Names of embedded `post_tag` terms. The post's `tags` field is a list of ids. */
+function embeddedTagNames(embedded: WPPost["_embedded"] | undefined): string[] {
+  const terms = embedded?.["wp:term"];
+  if (!Array.isArray(terms)) return [];
+  const names: string[] = [];
+  const visit = (term: unknown) => {
+    if (!term || typeof term !== "object") return;
+    const record = term as WpTerm;
+    if (record.taxonomy === "post_tag" && typeof record.name === "string" && record.name) names.push(record.name);
+  };
+  for (const group of terms) {
+    if (Array.isArray(group)) {
+      for (const term of group) visit(term);
+    } else {
+      visit(group);
+    }
+  }
+  return names;
+}
+
+/** The stored text when `context=edit` sent it (`raw`); otherwise the display rendering. */
+function storedText(field: { raw?: string | undefined; rendered?: string | undefined } | undefined): string {
+  if (field && typeof field.raw === "string") return field.raw;
+  return field?.rendered ?? "";
+}
+
+export function WPPostListItemToBlogPostListItem({ id, date_gmt, modified_gmt, title, status, link, _embedded }: Partial<WPPost>): BlogPostListItem {
   if (!id) throw new Error("Cannot convert WPPost to BlogPost: Missing required field: id");
   if (!title) throw new Error("Cannot convert WPPost to BlogPost: Missing required field: title");
   if (!status) throw new Error("Cannot convert WPPost to BlogPost: Missing required field: status");
 
-  const featuredMedia = _embedded?.["wp:featuredmedia"]?.[0] as { id: number; link: string } | undefined;
-  //console.log(JSON.stringify(_embedded, null, 2));
-  //console.log(`Featured media: ${JSON.stringify(featuredMedia, null, 2)}`);
+  const featuredMedia = _embedded?.["wp:featuredmedia"]?.[0] as WpFeaturedMedia | undefined;
+  const blogStatus = wpToBlogPostStatusMap[status as keyof typeof wpToBlogPostStatusMap];
+  // date_gmt is set for drafts too. Only a published or scheduled post has a publish time.
+  const publishedAt = date_gmt ? Date.parse(date_gmt) : Number.NaN;
 
   const now = Date.now();
   return stripUndefinedKeys({
     id: id.toString(),
-    title: title.rendered,
-    tags: [],
-    ...(featuredMedia
-      ? {
-          feature_image: {
-            id: featuredMedia.id.toString(),
-            url: featuredMedia.link,
-          },
-        }
-      : undefined),
-    status: wpToBlogPostStatusMap[status as keyof typeof wpToBlogPostStatusMap] satisfies BlogPost["status"],
+    title: storedText(title),
+    tags: embeddedTagNames(_embedded),
+    url: link || undefined,
+    feature_image: featuredMedia?.source_url
+      ? stripUndefinedKeys({
+          id: featuredMedia.id != null ? featuredMedia.id.toString() : undefined,
+          url: featuredMedia.source_url,
+        })
+      : undefined,
+    status: blogStatus satisfies BlogPost["status"],
     created_at: date_gmt ? Date.parse(date_gmt) : now,
     updated_at: modified_gmt ? Date.parse(modified_gmt) : now,
-    published_at: date_gmt ? Date.parse(date_gmt) : undefined,
+    published_at: (blogStatus === "published" || blogStatus === "scheduled") && Number.isFinite(publishedAt) ? publishedAt : undefined,
   });
 }
 
-function WPPostToBlogPost(args: Partial<WPPost>): BlogPost {
-  return {
+/** `tagNames` is used when the response has no embedded terms (create/update omit `_embed`). */
+export function WPPostToBlogPost(args: Partial<WPPost>, tagNames?: string[]): BlogPost {
+  const post: BlogPost = {
     ...WPPostListItemToBlogPostListItem(args),
-    html: args.content?.rendered ?? "",
+    html: storedText(args.content),
   };
+  if (tagNames && !args._embedded?.["wp:term"]) return { ...post, tags: tagNames };
+  return post;
+}
+
+function isPublishTime(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/**
+ * Scalar edits for a post update. An empty `html` clears the content; omitted `html` is left alone.
+ * `scheduled` without `published_at` throws — status `future` is never sent on its own.
+ */
+export function wordPressPostEdits({ title, html, feature_image, status, published_at }: UpdatePostData): Partial<WPPost> {
+  const update: Partial<WPPost> = {};
+  if (title) update.title = { rendered: title };
+  if (html !== undefined) update.content = { rendered: html, protected: false };
+  if (feature_image) {
+    if (feature_image.id) update.featured_media = parseInt(feature_image.id, 10);
+    else throw new Error("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?");
+  }
+  if (status === "scheduled") {
+    if (!isPublishTime(published_at)) throw new Error("Scheduling a post requires a publish date");
+    update.status = "future";
+    update.date_gmt = new Date(published_at).toISOString();
+  } else if (status) {
+    update.status = blogPostToWpStatusMap[status];
+  }
+  return update;
 }
 
 /** WordPress `orderby`/`order` for each sort the blog UI offers. */
@@ -102,6 +160,8 @@ export function wordPressSearchQueries(options: BlogPostSearchOptions): URLSearc
     params.append("orderby", WP_ORDER[sort].orderby);
     params.append("order", WP_ORDER[sort].order);
     params.append("_fields", listItemFields);
+    // `raw` title (and content, on a single post) is only returned in the edit context.
+    params.append("context", "edit");
     params.append("offset", String(offset + fetched));
     params.append("per_page", String(Math.min(WP_MAX_PER_PAGE, wanted - fetched)));
     const trimmed = keyword?.trim();
@@ -111,7 +171,7 @@ export function wordPressSearchQueries(options: BlogPostSearchOptions): URLSearc
   return queries;
 }
 
-const listItemFields = "id,title,status,date_gmt,modified_gmt,featured_media,_links,_embedded";
+const listItemFields = "id,title,status,date_gmt,modified_gmt,link,tags,featured_media,_links,_embedded";
 const fullItemFields = `${listItemFields},content`;
 const allStatuses = "publish,future,draft,pending,private";
 
@@ -137,6 +197,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     const params = new URLSearchParams();
     params.append("status", allStatuses);
     params.append("order", "desc");
+    params.append("context", "edit");
     params.append("_fields", listItemFields);
 
     const posts = await this.client.post().find(params);
@@ -148,6 +209,7 @@ export default class WordPressBlogProvider implements BlogProvider {
     const params = new URLSearchParams();
     params.append("status", filter.status ? blogPostToWpStatusMap[filter.status] : allStatuses);
     params.append("order", "desc");
+    params.append("context", "edit");
     params.append("_fields", listItemFields);
     if (filter.keyword) params.append("search", filter.keyword);
     if (filter.limit) params.append("per_page", filter.limit.toString());
@@ -190,29 +252,21 @@ export default class WordPressBlogProvider implements BlogProvider {
     });
 
     if (!result) throw new Error("Failed to create post");
-    return WPPostToBlogPost(result);
+    return WPPostToBlogPost(result, tags);
   }
 
   async updatePost(id: string, data: UpdatePostData): Promise<BlogPost> {
-    const { title, html, tags, feature_image, status } = data;
-
-    const updateData: Partial<WPPost> = { id: parseInt(id, 10) };
-    if (title) updateData.title = { rendered: title };
-    if (html) updateData.content = { rendered: html, protected: false };
-    if (tags) updateData.tags = await this.getOrCreateTagIds(tags);
-    if (feature_image) {
-      if (feature_image.id) updateData.featured_media = parseInt(feature_image.id, 10);
-      else throw new Error("Wordpress feature image must be an attachment id - is wordpress not set as the CDN?");
-    }
-    if (status) updateData.status = blogPostToWpStatusMap[status];
+    const updateData: Partial<WPPost> = { id: parseInt(id, 10), ...wordPressPostEdits(data) };
+    if (data.tags) updateData.tags = await this.getOrCreateTagIds(data.tags);
 
     const result = await this.client.post().update(updateData, parseInt(id, 10));
     if (!result) throw new Error("Failed to update post");
-    return WPPostToBlogPost(result);
+    return WPPostToBlogPost(result, data.tags);
   }
 
   async getPostById(id: string): Promise<BlogPost> {
     const params = new URLSearchParams();
+    params.append("context", "edit");
     params.append("_fields", fullItemFields);
 
     const post = await this.client.post().find(params, parseInt(id, 10));
